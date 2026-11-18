@@ -28,9 +28,7 @@
 | Control | Behavior |
 |---|---|
 | ComfyUI URL | Server used for uploads, queueing, history, and downloads. |
-| Set FFmpeg | Selects an executable when FFmpeg is outside PATH. |
-| Set ComfyUI Folder | Selects a local Portable instance's `main.py` to find bundled FFmpeg and local output. |
-| Check Setup | Checks dependencies and the server's graph/model capabilities. |
+| Check Setup | Finds FFmpeg and the local ComfyUI folder automatically, shows them under the button, and checks dependencies and the server's graph/model capabilities. |
 | Transformer | LTX-2.5 distilled diffusion weights. |
 | Text encoder | Gemma text encoder for prompt conditioning. |
 | Video VAE | Guide encoder and output decoder. |
