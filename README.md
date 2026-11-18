@@ -6,7 +6,7 @@ Turn a clay render or playblast into a finished shot from Nuke. Connect the anim
 
 ## Gizmo
 
-Find **LTX Layout** under **Nodes → ComfyUI**.
+Find **LTX Layout Studio** under **Nodes → ComfyUI**.
 
 | Input | What to connect |
 | --- | --- |
@@ -29,7 +29,7 @@ Find **LTX Layout** under **Nodes → ComfyUI**.
    nuke.pluginAddPath("./ltx-layout-main")
    ```
 
-3. Start ComfyUI, then restart Nuke and add **ComfyUI → LTX Layout**.
+3. Start ComfyUI, then restart Nuke and add **ComfyUI → LTX Layout Studio**.
 4. Open the gizmo’s **Settings** and check the ComfyUI URL. The default is `http://127.0.0.1:8188`. If FFmpeg is outside PATH, use **Set FFmpeg** to select it, or **Set ComfyUI Folder** to select the Portable install’s `ComfyUI/main.py`. Run **Check Setup** before your first render.
 
 For exact model filenames, dependency setup, and a short verification render, see the [installation guide](docs/INSTALLATION.md). To update, replace the files in your existing plugin folder, restart Nuke, and create a fresh gizmo.
@@ -38,7 +38,7 @@ For exact model filenames, dependency setup, and a short verification render, se
 
 1. Connect **Clay** and **Look Still**. Click **Use Clay Range** or enter **First** and **Last**. The gizmo samples the Look Still at the first Clay frame by default. Turn off **Match Look Still frame to Clay First** to choose a different frame.
 2. Set the prompt, output size, and **Render folder**. The default output is **768×448**. Use multiples of 64 for width and height. LTX may trim the input range to a supported `8n+1` frame count.
-3. Click **Queue Render**. Watch **Status** for progress. Use **Cancel Request** to stop this gizmo’s active job.
+3. Click **Queue Render**. Watch **Status** for progress. Use **Version Up Output** before rendering a new version. Select an existing **Version** to import its outputs. Use **Cancel Request** to stop this gizmo’s active job.
 4. Click **Bring Render** for the EXR sequence or **Bring Contact Sheet** for the comparison MP4. Each button creates a separate Read, starting at **Place render at**.
 
 ## Standalone ComfyUI workflow
