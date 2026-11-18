@@ -135,6 +135,8 @@ def queue(node):
         nuke.message("This gizmo is already watching a render.")
         return
     staging = None
+    folder = None
+    started = False
     try:
         if node.input(0) is None or node.input(1) is None:
             raise ValueError("Connect both arrows: Clay and Look Still.")
@@ -164,6 +166,7 @@ def queue(node):
                     node["negative"].value(),
                     {key: node[key].value().strip() for key in MODEL_INPUTS}, job_name)
         build_prompt("Clay.mp4", "LookStill.png", *settings)
+        check_server(host)
         folder = new_render_folder(base, version)
         (folder / "ComfyRun.txt").write_text(job_name, encoding="utf-8")
         staging = tempfile.TemporaryDirectory(prefix="input_", dir=folder)
@@ -176,13 +179,28 @@ def queue(node):
         export_input(node, "Look_Still", look, look_frame, look_frame, *settings[:2])
         start_worker(node, host, folder, None, (clay, look, settings),
                      (staging, ffmpeg, sequence, first, last, fps, comfy_root))
-        staging = None
+        started = True
     except (OSError, ValueError, RuntimeError) as error:
-        node["job_status"].setValue("Input export stopped")
+        node["job_status"].setValue("Queue stopped")
         nuke.message(str(error))
     finally:
-        if staging is not None:
-            staging.cleanup()
+        if not started:
+            if staging is not None:
+                staging.cleanup()
+            if folder is not None:
+                discard_empty_run(folder)
+
+
+def discard_empty_run(folder):
+    """Remove a newly reserved run with no outputs, leaving any other files alone."""
+    marker = folder / "ComfyRun.txt"
+    try:
+        if any(path != marker for path in folder.iterdir()):
+            return
+        marker.unlink(missing_ok=True)
+        folder.rmdir()
+    except OSError:
+        pass
 
 
 def use_clay_range(node):
@@ -265,13 +283,28 @@ def contact_filters(ffmpeg):
     return available
 
 
+def check_server(host):
+    stats = client.json_request(host, "/system_stats", timeout=5)
+    if not isinstance(stats, dict) or "system" not in stats:
+        raise RuntimeError("That URL did not return ComfyUI system information.")
+
+
+def combo_choices(spec):
+    if isinstance(spec, (list, tuple)) and spec:
+        if isinstance(spec[0], list):
+            return spec[0]
+        if spec[0] == "COMBO" and len(spec) > 1 and isinstance(spec[1], dict):
+            options = spec[1].get("options")
+            if isinstance(options, list):
+                return options
+    return None
+
+
 def verify_setup(host, ffmpeg, models):
     if "libx264" not in ffmpeg_names(ffmpeg, "-encoders"):
         raise RuntimeError("FFmpeg must include the libx264 encoder.")
     contact_filters(ffmpeg)
-    stats = client.json_request(host, "/system_stats")
-    if not isinstance(stats, dict) or "system" not in stats:
-        raise RuntimeError("That URL did not return ComfyUI system information.")
+    check_server(host)
     catalog = client.json_request(host, "/object_info") or {}
     prompt = build_prompt("Clay.mp4", "LookStill.png", 768, 448, 42, "", "", models, "check")
     required = {step["class_type"] for step in prompt.values()} | {"OCIOWrite"}
@@ -279,14 +312,22 @@ def verify_setup(host, ffmpeg, models):
     if missing_nodes:
         raise RuntimeError("Missing ComfyUI node types: " + ", ".join(missing_nodes))
     missing_models = []
+    unknown_models = []
     for control, (node_id, name) in MODEL_INPUTS.items():
         node_type = prompt[node_id]["class_type"]
         spec = catalog[node_type].get("input", {}).get("required", {}).get(name, [])
-        choices = spec[0] if spec and isinstance(spec[0], list) else None
-        if choices is not None and models[control] not in choices:
+        choices = combo_choices(spec)
+        if choices is None:
+            unknown_models.append(f"{control} ({node_type}.{name})")
+        elif models[control] not in choices:
             missing_models.append(f"{control}: {models[control]}")
+    model_errors = []
     if missing_models:
-        raise RuntimeError("Model names not found on the server:\n" + "\n".join(missing_models))
+        model_errors.append("Model names not found on the server:\n" + "\n".join(missing_models))
+    if unknown_models:
+        model_errors.append("Could not verify model choices on the server:\n" + "\n".join(unknown_models))
+    if model_errors:
+        raise RuntimeError("\n\n".join(model_errors))
     add_exr_output(host, prompt, Path("setup_check"), catalog)
     incompatible = set()
     for step in prompt.values():
@@ -423,8 +464,8 @@ def add_exr_output(host, prompt, folder, catalog=None):
     required = (info or {}).get("OCIOWrite", {}).get("input", {}).get("required", {})
     if "input_colorspace" not in required or "output_colorspace" not in required:
         raise RuntimeError("The ComfyUI server needs the current ComfyUI-OCIO Write node for EXR output.")
-    inputs = required["input_colorspace"][0]
-    outputs = required["output_colorspace"][0]
+    inputs = combo_choices(required["input_colorspace"]) or []
+    outputs = combo_choices(required["output_colorspace"]) or []
     source = next((cs for cs in ("sRGB - Display", "sRGB - Texture", "Utility - sRGB - Texture", "sRGB") if cs in inputs), None)
     target = next((cs for cs in ("ACEScg", "ACES - ACEScg") if cs in outputs), None)
     if not source or not target:
@@ -484,15 +525,18 @@ def cancel_remote(host, job_id):
 def start_worker(node, host, folder, job_id, submission, export=None):
     key = node.fullName()
     if key in ACTIVE:
-        nuke.message("This gizmo is already watching a render.")
-        return
+        raise RuntimeError("This gizmo is already watching a render.")
     token = uuid.uuid4().hex
     stop = threading.Event()
     ACTIVE[key] = (token, stop)
     node["job_status"].setValue("Connecting to ComfyUI")
     context = (key, token, nuke.root().name())
-    threading.Thread(target=render, args=(context, host, folder, job_id, submission, export, stop),
-                     daemon=True, name="LTXLayoutStudio").start()
+    try:
+        threading.Thread(target=render, args=(context, host, folder, job_id, submission, export, stop),
+                         daemon=True, name="LTXLayoutStudio").start()
+    except RuntimeError:
+        ACTIVE.pop(key, None)
+        raise
 
 
 def publish(context, status, job=None, result=None, terminal=False):
@@ -501,14 +545,16 @@ def publish(context, status, job=None, result=None, terminal=False):
 
 def render(context, host, folder, job_id, submission, export=None, stop=None):
     stop = stop if stop is not None else threading.Event()
+    submitting = False
+    terminal_status = None
     try:
         if submission is not None:
             clay, look, settings = submission
             folder.mkdir(parents=True, exist_ok=True)
             if stop.is_set():
-                publish(context, "Request canceled", terminal=True)
+                terminal_status = "Request canceled"
                 return
-            client.json_request(host, "/system_stats")
+            check_server(host)
             if export is not None:
                 _, ffmpeg, sequence, first, last, fps, comfy_root = export
                 publish(context, f"Encoding {last - first + 1} clay frames")
@@ -525,6 +571,7 @@ def render(context, host, folder, job_id, submission, export=None, stop=None):
             if stop.is_set():
                 publish(context, "Request canceled", terminal=True)
                 return
+            submitting = True
             reply = client.json_request(host, "/prompt", {"prompt": prompt, "client_id": context[1]})
             job_id = reply["prompt_id"]
             publish(context, "Queued in ComfyUI", (job_id, host, folder))
@@ -577,10 +624,14 @@ def render(context, host, folder, job_id, submission, export=None, stop=None):
         make_contact_video(ffmpeg, clay, look, video, sheet, settings[0], settings[1], fps, frame_count)
         publish(context, "Complete", result=(None, sheet), terminal=True)
     except Exception as error:
-        publish(context, f"Error: {error}", terminal=True)
+        terminal_status = f"Error: {error}"
     finally:
         if export is not None:
             export[0].cleanup()
+            if job_id is None and not submitting:
+                discard_empty_run(folder)
+        if terminal_status is not None:
+            publish(context, terminal_status, terminal=True)
 
 
 def apply_update(context, status, job, result, terminal):
