@@ -17,7 +17,7 @@ Find **LTX Layout** under **Nodes → ComfyUI**.
 
 - **Nuke on Windows.** The development target is **Nuke 16.0v5**. See [Nuke compatibility](docs/COMPATIBILITY.md) for the status of other versions.
 - **ComfyUI** with [ComfyUI-LTXVideo](https://github.com/Lightricks/ComfyUI-LTXVideo), [ComfyUI-OCIO](https://github.com/SlavaSexton/ComfyUI-OCIO), and the [LTX-2.5 model files](docs/INSTALLATION.md#1-prepare-comfyui).
-- **FFmpeg** with `libx264`. Use FFmpeg on PATH or the executable bundled with your ComfyUI Portable installation.
+- [**FFmpeg**](https://ffmpeg.org/download.html) with `libx264`. Use FFmpeg on PATH or the executable bundled with your ComfyUI Portable installation.
 
 ## Install
 
