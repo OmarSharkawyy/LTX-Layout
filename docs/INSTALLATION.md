@@ -27,7 +27,7 @@
    ```
 
 3. Launch Nuke and create **ComfyUI → LTX Layout Studio** from the Nodes toolbar. To update an existing install, update the files inside its existing folder and use a fresh node after restarting Nuke. Older nodes saved in an existing script can retain older controls.
-4. In **Settings**, set the ComfyUI URL. If FFmpeg is on PATH, the Gizmo finds it automatically. Otherwise click **Set FFmpeg** and choose `ffmpeg.exe`, or click **Set ComfyUI Folder** and choose the Portable install's `ComfyUI/main.py` to use its bundled binary. FFmpeg needs the `libx264` encoder and the filters used for the 2×2 comparison.
+4. In **Settings**, set the ComfyUI URL. The Gizmo finds FFmpeg and the ComfyUI folder by itself: it asks a ComfyUI running on this machine where it is installed, checks PATH (including PATH changes made after you logged in), common install folders (winget, Chocolatey, Scoop, `C:\ffmpeg`, Program Files, Downloads), and the FFmpeg bundled with ComfyUI Portable or ComfyUI Desktop. Only if nothing is found does it ask you to pick `ffmpeg.exe`. FFmpeg needs the `libx264` encoder and the filters used for the 2×2 comparison. Advanced: the `LTX_LAYOUT_FFMPEG` and `LTX_LAYOUT_COMFY_ROOT` environment variables override the search.
 5. Run **Check Setup**. It checks FFmpeg's H.264 encoder and comparison filters, the server, workflow node types and required inputs, model filenames, and available sRGB/ACEScg entries. Run a short render after the check passes.
 
 ## 3. Verify a clean installation

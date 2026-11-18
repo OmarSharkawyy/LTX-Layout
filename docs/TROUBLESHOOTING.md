@@ -6,7 +6,7 @@
 | The panel looks like an older version | Create a fresh node after upgrading the plugin files. |
 | Check Setup cannot reach ComfyUI | Open the address in a browser and confirm the hostname, port, and ComfyUI instance. |
 | Missing node types or models | Read the names reported by Check Setup. Confirm ComfyUI-LTXVideo and ComfyUI-OCIO loaded in that instance, and use the exact filenames in the Models tab. |
-| FFmpeg is missing or lacks an encoder/filter | Select a full FFmpeg build in Settings or choose the appropriate local ComfyUI Portable installation. Run Check Setup again. |
+| FFmpeg is missing or lacks an encoder/filter | Install a full build (`winget install Gyan.FFmpeg`) and run Check Setup again; it is found automatically. To force a specific build, set the `LTX_LAYOUT_FFMPEG` environment variable to its path. |
 | OCIO errors or unexpected contrast | Confirm OCIO Write exposes an sRGB source and ACEScg output. Check that the imported EXR Read uses ACEScg and the Viewer applies the intended project display transform. |
 | Out of memory | Reproduce using nine frames at 512×320, then adjust resolution and duration separately. |
 | Model output drifts from the layout | Confirm both inputs have matching framing and that Look Still holds the intended frame. Compare the Clay/Final wipe in the review video. |

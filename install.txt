@@ -11,8 +11,8 @@ Omar El Sharkawy
 
    Install the LTX-2.5 files listed in the official guide and enter the exact
    filenames in the Models tab. Start ComfyUI. Install FFmpeg with libx264
-   and make it available on PATH, or use an existing ComfyUI Portable
-   imageio_ffmpeg executable. The package includes neither model weights
+   (for example: winget install Gyan.FFmpeg), or rely on the FFmpeg that
+   ComfyUI Portable bundles through imageio_ffmpeg. The package includes neither model weights
    nor FFmpeg binaries.
 
 2. INSTALL OR UPDATE THE NUKE TOOL
@@ -35,10 +35,11 @@ Omar El Sharkawy
 3. RUN YOUR FIRST RENDER
 
    Connect the animated guide to Clay and the matching image to Look Still.
-   In Settings, enter the ComfyUI URL. If FFmpeg is not on PATH, use Set
-   FFmpeg to select its executable, or Set ComfyUI Folder to select the
-   local Portable install's ComfyUI/main.py. Click Check Setup and resolve
-   any dependency, model name, or colorspace error.
+   In Settings, enter the ComfyUI URL and click Check Setup. The gizmo
+   finds FFmpeg and the local ComfyUI folder by itself (PATH, common
+   install folders, or the FFmpeg bundled with ComfyUI). It only asks you
+   to pick ffmpeg.exe if none is found. Resolve any dependency, model
+   name, or colorspace error that Check Setup reports.
 
    Enter a 9-frame range, such as First 1001 and Last 1009. Start at
    512x320. Set Render folder to a writable folder.

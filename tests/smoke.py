@@ -80,7 +80,58 @@ def main():
             bridge.make_contact_video(ffmpeg, run / "Clay.mp4", run / "LookStill.png",
                                       run / "Render.mp4", unlabelled, 128, 128, 24, 9)
             assert unlabelled.stat().st_size > 0
+        detection_test(bridge, root)
     print("Portable integration passed: new paths, setup, upload, queue, EXRs, review MP4, and both Reads.")
+
+
+def detection_test(bridge, root):
+    """FFmpeg and ComfyUI folders are found without any Settings input."""
+    portable = root / "ComfyUI_windows_portable"
+    comfy = portable / "ComfyUI"
+    (comfy / "custom_nodes").mkdir(parents=True)
+    (comfy / "models").mkdir()
+    (comfy / "main.py").write_text("", encoding="utf-8")
+    binaries = portable / "python_embeded/Lib/site-packages/imageio_ffmpeg/binaries"
+    binaries.mkdir(parents=True)
+    bundled = binaries / ("ffmpeg-win-x86_64-v7.1.exe" if bridge.IS_WINDOWS else "ffmpeg-linux-x86_64-v7.1")
+    bundled.write_bytes(b"")
+    bundled.chmod(0o755)
+    for choice in (portable, comfy, comfy / "main.py"):
+        assert bridge.comfy_base(choice) == comfy.resolve(), choice
+    assert bridge.comfy_base(root / "missing") is None
+    assert bridge.find_comfy_root(str(root / "stale path from another PC")) is None
+
+    def server(host, route, *_, **__):
+        if route == "/internal/folder_paths":
+            return {"custom_nodes": [str(comfy / "custom_nodes")]}
+        return {"system": {"argv": ["ComfyUI\\main.py"]}}
+
+    bridge._FOUND.clear()
+    with patch.object(bridge.client, "json_request", side_effect=server):
+        assert bridge.find_comfy_root("", "http://127.0.0.1:8188") == comfy.resolve()
+        assert bridge.find_comfy_root("", "http://10.0.0.5:8188") is None
+    nowhere = dict(shutil=patch.object(bridge.shutil, "which", return_value=None),
+                   registry=patch.object(bridge, "registry_path_dirs", return_value=[]),
+                   known=patch.object(bridge, "known_ffmpeg_dirs", return_value=[]),
+                   scan=patch.object(bridge, "scan_comfy_installs", return_value=[]))
+    with nowhere["shutil"], nowhere["registry"], nowhere["known"], nowhere["scan"], \
+            patch.dict(sys.modules, {"imageio_ffmpeg": None}), \
+            patch.dict(bridge.os.environ, {"LTX_LAYOUT_FFMPEG": ""}):
+        bridge._FOUND.clear()
+        found = bridge.find_ffmpeg(str(root / "stale ffmpeg.exe"), comfy.resolve())
+        assert Path(found) == bundled.resolve(), found
+        bridge._FOUND.clear()
+        try:
+            bridge.find_ffmpeg("")
+        except ValueError as error:
+            assert "not found" in str(error)
+        else:
+            raise AssertionError("A machine with no FFmpeg must report it.")
+    with nowhere["shutil"], nowhere["registry"], nowhere["known"], \
+            patch.object(bridge, "scan_comfy_installs", return_value=[comfy.resolve()]):
+        bridge._FOUND.clear()
+        assert Path(bridge.find_ffmpeg("")) == bundled.resolve()
+    bridge._FOUND.clear()
 
 
 def server_test(bridge, nuke, settings, catalog, run, staging, ffmpeg, sequence,
