@@ -24,10 +24,10 @@ def request(host, route, data=None, headers=None, timeout=30):
         raise RuntimeError(f"Could not reach ComfyUI at {host}: {error.reason}") from error
 
 
-def json_request(host, route, body=None):
+def json_request(host, route, body=None, *, timeout=30):
     data = json.dumps(body).encode("utf-8") if body is not None else None
     headers = {"Content-Type": "application/json"} if data is not None else None
-    with request(host, route, data, headers) as reply:
+    with request(host, route, data, headers, timeout=timeout) as reply:
         payload = reply.read()
         return json.loads(payload) if payload.strip() else None
 
