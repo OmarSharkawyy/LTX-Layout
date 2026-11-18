@@ -1,4 +1,5 @@
 """HTTP transport for a running ComfyUI server."""
+import http.client
 import json
 from pathlib import Path
 import shutil
@@ -6,6 +7,13 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+
+# Gateway and rate-limit replies that usually clear up on their own.
+TRANSIENT_HTTP_CODES = frozenset({408, 429, 500, 502, 503, 504})
+
+
+class TransientError(RuntimeError):
+    """A network failure that may succeed if the same request is repeated."""
 
 
 def request(host, route, data=None, headers=None, timeout=30):
@@ -19,17 +27,27 @@ def request(host, route, data=None, headers=None, timeout=30):
             details = json.dumps(json.loads(raw), ensure_ascii=False, indent=2)
         except ValueError:
             details = raw
-        raise RuntimeError(f"ComfyUI HTTP {error.code} on {route}\n{details[:2500]}") from error
+        failure = TransientError if error.code in TRANSIENT_HTTP_CODES else RuntimeError
+        raise failure(f"ComfyUI HTTP {error.code} on {route}\n{details[:2500]}") from error
     except urllib.error.URLError as error:
-        raise RuntimeError(f"Could not reach ComfyUI at {host}: {error.reason}") from error
+        raise TransientError(f"Could not reach ComfyUI at {host}: {error.reason}") from error
+    except (OSError, http.client.HTTPException) as error:
+        # Timeouts and resets raised while connecting or reading the status line.
+        raise TransientError(f"Could not reach ComfyUI at {host}: {error}") from error
 
 
 def json_request(host, route, body=None, *, timeout=30):
     data = json.dumps(body).encode("utf-8") if body is not None else None
     headers = {"Content-Type": "application/json"} if data is not None else None
     with request(host, route, data, headers, timeout=timeout) as reply:
-        payload = reply.read()
-        return json.loads(payload) if payload.strip() else None
+        try:
+            payload = reply.read()
+        except (OSError, http.client.HTTPException) as error:
+            raise TransientError(f"ComfyUI stopped replying on {route}: {error}") from error
+        try:
+            return json.loads(payload) if payload.strip() else None
+        except ValueError as error:
+            raise TransientError(f"ComfyUI sent an unreadable reply on {route}.") from error
 
 
 def upload(host, path):
