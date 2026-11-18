@@ -199,6 +199,33 @@ def server_test(bridge, nuke, settings, catalog, run, staging, ffmpeg, sequence,
     assert render["frame"].value() == "1001" and render["colorspace"].value() == "ACEScg"
     assert sheet["file"].value().endswith("/0001/ContactSheet.mp4")
 
+    version_two = bridge.new_render_folder(run.parent, 2)
+    assert version_two.name == "0002"
+    try:
+        bridge.new_render_folder(run.parent, 2)
+    except ValueError as error:
+        assert "already exists" in str(error)
+    else:
+        raise AssertionError("Queue must protect an existing version.")
+    (version_two / "EXR").mkdir()
+    shutil.copyfile(run / "EXR/Render.0001.exr", version_two / "EXR/Render.0001.exr")
+    shutil.copyfile(run / "ContactSheet.mp4", version_two / "ContactSheet.mp4")
+    node.knobs["output_version"] = Knob(2)
+    node["job_folder"].setValue(str(run))
+    assert "/0002/EXR/" in bridge.bring_render(node)["file"].value()
+    assert bridge.read_sheet(node)["file"].value().endswith("/0002/ContactSheet.mp4")
+    node["output_version"].setValue(1)
+    bridge.version_up(node)
+    assert node["output_version"].value() == 3
+    with patch.object(nuke, "message") as message:
+        assert bridge.read_sheet(node) is None
+        message.assert_called_once()
+    node["render_dir"].setValue(str(run))
+    assert "/0001/EXR/" in bridge.bring_render(node)["file"].value()
+    bridge.version_up(node)
+    assert node["output_version"].value() == 3
+    assert Path(node["render_dir"].value()) == run.parent
+
 
 if __name__ == "__main__":
     main()
