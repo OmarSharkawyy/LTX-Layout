@@ -42,6 +42,8 @@ For exact model filenames, dependency setup, and a short verification render, se
 
 ## Standalone ComfyUI workflow
 
+**ComfyUI-OCIO is optional for the standalone Lightricks workflow** when you only need a video. The current **LTX Layout Nuke gizmo** requires it to write the ACEScg EXR sequence during **Queue Render**, even when you only use the review MP4. [Install ComfyUI-OCIO](https://github.com/SlavaSexton/ComfyUI-OCIO)
+
 The standard Lightricks Layout to Render workflow saves a video. The ACEScg EXR sequence and the 2×2 comparison are outputs added by this Nuke gizmo. [Lightricks workflow guide](https://docs.ltx.io/open-source-model/vfx-post-production/layout-to-render)
 
 A regular SDR clay render or playblast works as input. There is no need to convert the source video to ACES first. When reading SDR footage in Nuke, assign the Read its actual source color space, such as sRGB or Rec.709. The gizmo delivers the final EXR sequence in ACEScg.
