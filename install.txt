@@ -21,9 +21,12 @@ Omar El Sharkawy
    ltx-layout-main folder into %USERPROFILE%\.nuke.
    For an update, replace the files inside the existing folder.
 
-   Confirm that LTXLayoutStudio.gizmo is directly inside that folder.
-   In .nuke/init.py, add this once if it is missing:
+   Confirm that LTXLayoutStudio.gizmo and menu.py are directly inside
+   that folder. Open %USERPROFILE%\.nuke\init.py, or create it if needed.
+   Add this block near the top, keeping your existing startup code.
+   Replace any earlier LTX Layout path entry.
 
+       import nuke
        nuke.pluginAddPath("./ltx-layout-main")
 
    Start Nuke and create a fresh node from ComfyUI > LTX Layout. Older nodes
