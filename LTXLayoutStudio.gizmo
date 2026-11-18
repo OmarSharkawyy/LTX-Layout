@@ -2,7 +2,8 @@ Gizmo {
  inputs 2
  name LTXLayoutStudio
  tile_color 0x476581ff
- addUserKnob {20 layout_tab l "LTX Layout"}
+ label "LTX Layout Studio"
+ addUserKnob {20 layout_tab l "LTX Layout Studio"}
  addUserKnob {26 guide l "" T "Connect the Clay and Look Still arrows in the Node Graph."}
  addUserKnob {26 range_title l "" +STARTLINE T "<b>Frame range</b>"}
  addUserKnob {3 clay_first l First +STARTLINE t "First Nuke timeline frame sent from the Clay input."}
@@ -30,6 +31,9 @@ Gizmo {
  addUserKnob {1 seed_text l Seed +STARTLINE t "Starting noise seed for both samplers. Change it for a render variation."}
  seed_text 42
  addUserKnob {2 render_dir l "Render folder" +STARTLINE t "Base directory for numbered runs and the files loaded by the Bring buttons."}
+ addUserKnob {3 output_version l Version +STARTLINE t "Selects the numbered output folder. Version 1 uses 0001, version 2 uses 0002."}
+ output_version 1
+ addUserKnob {22 version_up_output l "Version Up Output" -STARTLINE t "Select the next unused output version. Queue Render writes it and the Bring buttons read it." T "from ltx_layout_studio import bridge; bridge.version_up(nuke.thisNode())"}
  addUserKnob {22 queue_job l "Queue Render" +STARTLINE T "from ltx_layout_studio import bridge; bridge.queue(nuke.thisNode())"}
  addUserKnob {22 cancel_job l "Cancel Request" -STARTLINE T "from ltx_layout_studio import bridge; bridge.cancel(nuke.thisNode())"}
  addUserKnob {22 read_render l "Bring Render" +STARTLINE T "from ltx_layout_studio import bridge; bridge.bring_render(nuke.thisNode())"}
@@ -51,7 +55,7 @@ Gizmo {
  addUserKnob {22 check_setup l "Check Setup" -STARTLINE t "Check FFmpeg, the ComfyUI server, workflow nodes, model names, and the EXR colorspace options." T "from ltx_layout_studio import bridge; bridge.check_setup(nuke.thisNode())"}
  addUserKnob {26 settings_frames l "" +STARTLINE T "<b>Inputs and timing</b><br>Clay sets the layout and movement. Look Still sets the appearance.<br>First / Last select the Clay timeline range at the project FPS.<br>Use Clay Range copies the connected node's range. LTX may trim the end to 8n+1 frames.<br>Match Look Still uses the Clay First frame number. Turn it off to choose Look frame independently."}
  addUserKnob {26 settings_prompts l "" +STARTLINE T "<b>Prompts and seed</b><br>Positive describes the desired look and scene. Negative describes features to avoid.<br>Seed sets the noise for both passes. Use the same seed when comparing changes."}
- addUserKnob {26 settings_output l "" +STARTLINE T "<b>Output and import</b><br>Width / Height set final pixels and must be multiples of 64.<br>Place render at sets the timeline start of the imported Reads.<br>Render folder stores numbered runs. Bring Render reads the ACEScg EXRs.<br>Bring Contact Sheet reads the 2×2 comparison MP4 from the same run."}
+ addUserKnob {26 settings_output l "" +STARTLINE T "<b>Output and import</b><br>Width / Height set final pixels and must be multiples of 64.<br>Place render at sets the timeline start of the imported Reads.<br>Version selects a numbered run within Render folder. Version Up Output selects the next unused version. Bring Render reads the ACEScg EXRs.<br>Bring Contact Sheet reads the 2×2 comparison MP4 from the same run."}
  addUserKnob {26 settings_jobs l "" +STARTLINE T "<b>Jobs and models</b><br>Queue Render exports both inputs and submits them to ComfyUI.<br>Cancel Request targets this gizmo's active job. Status shows progress or errors.<br>Transformer runs LTX. Text encoder reads prompts. Video VAE decodes frames.<br>Layout LoRA follows the guides. Latent upscaler doubles the first-pass resolution."}
  addUserKnob {20 models_tab l Models}
  addUserKnob {1 transformer l Transformer t "Distilled LTX-2.5 diffusion model filename on the ComfyUI server."}
