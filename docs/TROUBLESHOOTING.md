@@ -2,7 +2,7 @@
 
 | Symptom | What to check |
 |---|---|
-| LTX Layout is missing from Nuke | Check the folder path and single `pluginAddPath` line in `init.py`, then restart Nuke. |
+| LTX Layout is missing from Nuke | Confirm that `LTXLayoutStudio.gizmo` and `menu.py` are directly inside `.nuke/ltx-layout-main`. Add the `init.py` block below, then restart Nuke. |
 | The panel looks like an older version | Create a fresh node after upgrading the plugin files. |
 | Check Setup cannot reach ComfyUI | Open the address in a browser and confirm the hostname, port, and ComfyUI instance. |
 | Missing node types or models | Read the names reported by Check Setup. Confirm ComfyUI-LTXVideo and ComfyUI-OCIO loaded in that instance, and use the exact filenames in the Models tab. |
@@ -13,3 +13,20 @@
 | Bring finds an older sequence | Select the exact numbered run directory and confirm its `EXR/` or `ContactSheet.mp4` exists. A new job is unnecessary for re-import. |
 | Bring produces the wrong offset | Check **Place render at**. EXRs are numbered from 0001 and are placed at the selected project frame by the Read. |
 | Final EXRs exist but the comparison is missing | Check the job status and FFmpeg errors. The EXR output can be available before the comparison MP4 finishes. |
+
+## Check the startup path
+
+In `%USERPROFILE%\.nuke\init.py`, place `import nuke` before the plugin path:
+
+```python
+import nuke
+nuke.pluginAddPath("./ltx-layout-main")
+```
+
+After restarting Nuke, run this in the Script Editor in Python mode:
+
+```python
+print(any("ltx-layout-main" in path.lower() for path in nuke.pluginPath()))
+```
+
+If it prints `False`, check that the saved file is named `init.py` and its entry matches the extracted folder. You can use the full path to the plugin folder in `nuke.pluginAddPath()` to verify where Nuke is looking.
