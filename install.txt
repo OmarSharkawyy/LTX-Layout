@@ -17,14 +17,14 @@ Omar El Sharkawy
 
 2. INSTALL OR UPDATE THE NUKE TOOL
 
-   Download the GitHub ZIP and extract it. Close Nuke. Rename the extracted
-   folder to LTX_Layout_Studio and copy it into %USERPROFILE%\.nuke.
+   Download the GitHub ZIP and extract it. Close Nuke. Copy the extracted
+   ltx-layout-main folder into %USERPROFILE%\.nuke.
    For an update, replace the files inside the existing folder.
 
    Confirm that LTXLayoutStudio.gizmo is directly inside that folder.
    In .nuke/init.py, add this once if it is missing:
 
-       nuke.pluginAddPath("./LTX_Layout_Studio")
+       nuke.pluginAddPath("./ltx-layout-main")
 
    Start Nuke and create a fresh node from ComfyUI > LTX Layout. Older nodes
    saved in an existing script may keep their old interface.
