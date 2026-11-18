@@ -149,12 +149,10 @@ def queue(node):
         if last == first:
             raise ValueError("Select at least 9 clay frames for video generation.")
         fps = float(nuke.root()["fps"].value())
-        comfy_root = node_portable_root(node)
-        ffmpeg = find_ffmpeg(node["ffmpeg_path"].value(), comfy_root)
-        host = node["server"].value().strip().rstrip("/")
-        parsed = urlparse(host)
-        if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
-            raise ValueError("Enter a valid ComfyUI URL, for example http://127.0.0.1:8188.")
+        host = valid_host(node["server"].value())
+        comfy_root = node_portable_root(node, host)
+        ffmpeg = node_ffmpeg(node, comfy_root, host)
+        show_detected(node, ffmpeg, comfy_root)
         base = render_base(node)
         version_knob = node.knob("output_version")
         version = int(version_knob.value()) if version_knob is not None else None
@@ -191,6 +189,14 @@ def queue(node):
                 discard_empty_run(folder)
 
 
+def valid_host(value):
+    host = value.strip().rstrip("/")
+    parsed = urlparse(host)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
+        raise ValueError("Enter a valid ComfyUI URL, for example http://127.0.0.1:8188.")
+    return host
+
+
 def discard_empty_run(folder):
     """Remove a newly reserved run with no outputs, leaving any other files alone."""
     marker = folder / "ComfyRun.txt"
@@ -214,54 +220,263 @@ def use_clay_range(node):
     node["start_at"].setValue(first)
 
 
-def portable_root(override=""):
-    value = override.strip() or os.environ.get("LTX_LAYOUT_COMFY_ROOT", "")
+IS_WINDOWS = os.name == "nt"
+FFMPEG_EXE = "ffmpeg.exe" if IS_WINDOWS else "ffmpeg"
+_FOUND = {}
+
+
+def comfy_base(value):
+    """Return the ComfyUI folder that holds custom_nodes/output for a path, or None.
+
+    Accepts the Portable folder, the ComfyUI folder, its main.py, or the
+    ComfyUI Desktop data folder (Documents/ComfyUI).
+    """
     if not value:
         return None
-    path = Path(value).expanduser()
-    if path.name.casefold() == "comfyui" and (path / "main.py").is_file():
-        path = path.parent
-    if not (path / "ComfyUI" / "main.py").is_file():
-        raise ValueError("Choose the ComfyUI Portable folder containing ComfyUI/main.py.")
-    return path.resolve()
-
-
-def node_portable_root(node):
-    knob = node.knob("comfy_root")
-    return portable_root(knob.value() if knob is not None else "")
-
-
-def find_ffmpeg(override="", comfy_root=None):
-    value = override.strip() or os.environ.get("LTX_LAYOUT_FFMPEG", "")
-    if value:
-        path = Path(value).expanduser()
+    path = Path(str(value).strip().strip('"')).expanduser()
+    try:
         if path.is_file():
-            return str(path.resolve())
-        raise ValueError("FFmpeg override does not point to an existing executable.")
-    ffmpeg = shutil.which("ffmpeg")
-    if ffmpeg:
-        return ffmpeg
-    if comfy_root is not None:
-        binaries = comfy_root / "python_embeded/Lib/site-packages/imageio_ffmpeg/binaries"
-        bundled = next(binaries.glob("ffmpeg*.exe"), None)
-        if bundled is not None:
-            return str(bundled)
-    raise ValueError("FFmpeg was not found. In Settings, use Set FFmpeg or Set ComfyUI Folder.")
+            path = path.parent
+        for candidate in (path / "ComfyUI", path):
+            if (candidate / "main.py").is_file() or (
+                    (candidate / "custom_nodes").is_dir() and (candidate / "models").is_dir()):
+                return candidate.resolve()
+    except OSError:
+        pass
+    return None
+
+
+def portable_root(override=""):
+    """Validate a ComfyUI folder that the user selected by hand."""
+    base = comfy_base(override)
+    if base is None:
+        raise ValueError("Choose the ComfyUI folder that contains main.py, or the Portable folder above it.")
+    return base
+
+
+def comfy_root_from_server(host):
+    """Ask a ComfyUI server on this machine where it is installed."""
+    key = host.strip().rstrip("/")
+    cached = _FOUND.get(("comfy", key))
+    if cached is not None and cached.is_dir():
+        return cached
+    candidates = []
+    try:
+        paths = client.json_request(key, "/internal/folder_paths", timeout=3) or {}
+        for name in ("custom_nodes", "diffusion_models", "checkpoints", "loras"):
+            candidates.extend(Path(item) for item in paths.get(name) or () if isinstance(item, str))
+    except (OSError, RuntimeError, ValueError, AttributeError, TypeError):
+        pass
+    try:
+        stats = client.json_request(key, "/system_stats", timeout=3) or {}
+        argv = stats.get("system", {}).get("argv") or []
+        if argv and isinstance(argv[0], str) and Path(argv[0]).is_absolute():
+            candidates.append(Path(argv[0]))
+    except (OSError, RuntimeError, ValueError, AttributeError, TypeError):
+        pass
+    for candidate in candidates:
+        for folder in (candidate, *list(candidate.parents)[:3]):
+            base = comfy_base(folder)
+            if base is not None:
+                _FOUND[("comfy", key)] = base
+                return base
+    return None
+
+
+def find_comfy_root(override="", host=None):
+    """Use a saved or environment path when valid, otherwise ask the local server."""
+    for value in (override, os.environ.get("LTX_LAYOUT_COMFY_ROOT", "")):
+        base = comfy_base(value)
+        if base is not None:
+            return base
+    if host and is_local_server(host):
+        return comfy_root_from_server(host)
+    return None
+
+
+def node_host(node):
+    knob = node.knob("server")
+    return knob.value().strip().rstrip("/") if knob is not None else ""
+
+
+def node_portable_root(node, host=None):
+    knob = node.knob("comfy_root")
+    return find_comfy_root(knob.value() if knob is not None else "", host or node_host(node))
+
+
+def child_dirs(folder):
+    try:
+        return sorted(item for item in folder.iterdir() if item.is_dir())
+    except OSError:
+        return []
+
+
+def fixed_drives():
+    if not IS_WINDOWS:
+        return []
+    try:
+        import ctypes
+        kernel = ctypes.windll.kernel32
+        mask = kernel.GetLogicalDrives()
+        drives = [f"{chr(65 + index)}:\\" for index in range(26) if mask >> index & 1]
+        return [Path(drive) for drive in drives if kernel.GetDriveTypeW(drive) == 3]
+    except (AttributeError, OSError):
+        return [Path(os.environ.get("SystemDrive", "C:") + "\\")]
+
+
+def scan_comfy_installs():
+    """Yield ComfyUI folders in the usual install places on this machine."""
+    home = Path.home()
+    places = [home / "Desktop", home / "OneDrive" / "Desktop", home / "Downloads",
+              home / "Documents", home, *fixed_drives()]
+    skip = {"windows", "program files", "program files (x86)", "programdata", "users",
+            "appdata", "$recycle.bin", "system volume information", "node_modules"}
+    seen = set()
+    for place in places:
+        for child in child_dirs(place):
+            name = child.name.casefold()
+            nested = [] if name in skip or name.startswith(".") else child_dirs(child)
+            for folder in ([child] if "comfy" in name else []) + [
+                    item for item in nested if "comfy" in item.name.casefold()]:
+                base = comfy_base(folder)
+                if base is not None and base not in seen:
+                    seen.add(base)
+                    yield base
+
+
+def bundled_ffmpeg(base):
+    """FFmpeg shipped by imageio-ffmpeg inside a ComfyUI Python environment."""
+    package = Path("site-packages/imageio_ffmpeg/binaries")
+    folders = [base.parent / name / "Lib" / package for name in ("python_embeded", "python_embedded")]
+    for env in (".venv", "venv", "python"):
+        folders.append(base / env / "Lib" / package)
+        folders.extend((base / env / "lib").glob(f"python3*/{package.as_posix()}"))
+    for folder in folders:
+        for item in sorted(folder.glob("ffmpeg*"), reverse=True):
+            if item.suffix.lower() == ".exe" if IS_WINDOWS else os.access(item, os.X_OK):
+                yield item
+
+
+def registry_path_dirs():
+    """PATH as saved in Windows now, which Nuke misses when FFmpeg was installed after login."""
+    if not IS_WINDOWS:
+        return
+    try:
+        import winreg
+    except ImportError:
+        return
+    for hive, key in ((winreg.HKEY_CURRENT_USER, "Environment"),
+                      (winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment")):
+        try:
+            with winreg.OpenKey(hive, key) as handle:
+                value = winreg.QueryValueEx(handle, "Path")[0]
+        except OSError:
+            continue
+        for part in os.path.expandvars(value).split(";"):
+            if part.strip():
+                yield Path(part.strip().strip('"'))
+
+
+def known_ffmpeg_dirs():
+    if not IS_WINDOWS:
+        yield from map(Path, ("/usr/local/bin", "/opt/homebrew/bin", "/usr/bin", "/snap/bin"))
+        return
+    env = os.environ.get
+    home = Path.home()
+    local = Path(env("LOCALAPPDATA", home / "AppData" / "Local"))
+    yield local / "Microsoft/WinGet/Links"
+    yield from (local / "Microsoft/WinGet/Packages").glob("*FFmpeg*/*/bin")
+    yield Path(env("ProgramData", r"C:\ProgramData")) / "chocolatey/bin"
+    yield home / "scoop/shims"
+    yield home / "scoop/apps/ffmpeg/current/bin"
+    for program_files in {env("ProgramFiles", r"C:\Program Files"), env("ProgramFiles(x86)", "")} - {""}:
+        yield Path(program_files) / "ffmpeg/bin"
+    for place in (*fixed_drives(), home / "Downloads", home / "Desktop", home / "Documents"):
+        for folder in place.glob("ffmpeg*"):
+            yield folder / "bin"
+            yield from folder.glob("*/bin")
+
+
+def ffmpeg_candidates(comfy_root=None, host=None):
+    """Possible FFmpeg executables, best first. Slow searches run only when needed."""
+    on_path = shutil.which("ffmpeg")
+    if on_path:
+        yield Path(on_path)
+    for folder in registry_path_dirs():
+        yield folder / FFMPEG_EXE
+    for folder in known_ffmpeg_dirs():
+        yield folder / FFMPEG_EXE
+    roots = [comfy_root] if comfy_root is not None else []
+    if host and is_local_server(host):
+        roots.append(comfy_root_from_server(host))
+    for root in roots:
+        if root is not None:
+            yield from bundled_ffmpeg(root)
+    for root in scan_comfy_installs():
+        yield from bundled_ffmpeg(root)
+    try:
+        import imageio_ffmpeg
+        yield Path(imageio_ffmpeg.get_ffmpeg_exe())
+    except Exception:  # Optional module; any failure only means no candidate.
+        pass
+
+
+def find_ffmpeg(override="", comfy_root=None, host=None):
+    """Return an FFmpeg executable: a saved choice when valid, otherwise search this machine."""
+    for value in (override, os.environ.get("LTX_LAYOUT_FFMPEG", "")):
+        value = value.strip().strip('"')
+        if value and Path(value).expanduser().is_file():
+            return str(Path(value).expanduser().resolve())
+    cached = _FOUND.get("ffmpeg")
+    if cached is not None and cached.is_file():
+        return str(cached)
+    for candidate in ffmpeg_candidates(comfy_root, host):
+        try:
+            if candidate.is_file():
+                _FOUND["ffmpeg"] = candidate.resolve()
+                return str(_FOUND["ffmpeg"])
+        except OSError:
+            continue
+    raise ValueError("FFmpeg was not found on this computer. Install FFmpeg "
+                     "(for example: winget install Gyan.FFmpeg) or start ComfyUI on this computer, then try again.")
+
+
+def node_ffmpeg(node, comfy_root=None, host=None):
+    """Find FFmpeg for a gizmo, asking for the executable only if the search fails."""
+    knob = node.knob("ffmpeg_path")
+    try:
+        return find_ffmpeg(knob.value() if knob is not None else "", comfy_root, host)
+    except ValueError as error:
+        ask = getattr(nuke, "ask", None)
+        if knob is None or ask is None or not ask(f"{error}\n\nSelect the FFmpeg executable yourself?"):
+            raise
+        selected = nuke.getFilename("Select the FFmpeg executable", "*")
+        if not selected or not Path(selected).is_file():
+            raise
+        knob.setValue(str(Path(selected).resolve()))
+        return knob.value()
+
+
+def show_detected(node, ffmpeg, comfy_root):
+    knob = node.knob("detected_paths")
+    if knob is not None:
+        knob.setValue(f"FFmpeg: {ffmpeg}<br>ComfyUI: {comfy_root or 'not found on this computer (optional)'}")
 
 
 def set_setup_path(node, kind):
+    """Kept for gizmos saved with the older Set FFmpeg / Set ComfyUI Folder buttons."""
     is_comfy = kind == "comfy"
     title = "Select ComfyUI/main.py" if is_comfy else "Select the FFmpeg executable"
-    pattern = "*.py" if is_comfy else "*"
-    selected = nuke.getFilename(title, pattern)
+    selected = nuke.getFilename(title, "*.py" if is_comfy else "*")
     if not selected:
         return
     try:
         if is_comfy:
-            value = portable_root(str(Path(selected).parent))
-            node["comfy_root"].setValue(str(value))
+            node["comfy_root"].setValue(str(portable_root(selected)))
+        elif Path(selected).is_file():
+            node["ffmpeg_path"].setValue(str(Path(selected).resolve()))
         else:
-            node["ffmpeg_path"].setValue(find_ffmpeg(selected))
+            raise ValueError("Select an existing FFmpeg executable.")
     except (OSError, ValueError) as error:
         nuke.message(str(error))
 
@@ -344,20 +559,22 @@ def verify_setup(host, ffmpeg, models):
 
 def check_setup(node):
     try:
-        root = node_portable_root(node)
-        ffmpeg = find_ffmpeg(node["ffmpeg_path"].value(), root)
-        host = node["server"].value().strip().rstrip("/")
+        host = valid_host(node["server"].value())
+        root = node_portable_root(node, host)
+        ffmpeg = node_ffmpeg(node, root, host)
         models = {key: node[key].value().strip() for key in MODEL_INPUTS}
     except (OSError, ValueError) as error:
         nuke.message(str(error))
         return
+    show_detected(node, ffmpeg, root)
+    found = f"FFmpeg: {ffmpeg}\nComfyUI folder: {root or 'not found on this computer (optional)'}\n\n"
 
     def run_check():
         try:
             report = verify_setup(host, ffmpeg, models)
         except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
             report = f"Setup check failed:\n{error}"
-        nuke.executeInMainThread(nuke.message, args=(report,))
+        nuke.executeInMainThread(nuke.message, args=(found + report,))
 
     threading.Thread(target=run_check, daemon=True, name="LTXLayoutSetup").start()
 
@@ -451,7 +668,7 @@ def local_comfy_render(host, folder, comfy_root=None):
     run = marker.read_text(encoding="utf-8").strip() if marker.is_file() else folder.name
     if not run or not all(char.isascii() and (char.isalnum() or char == "_") for char in run):
         return None
-    output = comfy_root / "ComfyUI/output/LTXLayoutStudio" / run
+    output = comfy_root / "output/LTXLayoutStudio" / run
     return next(iter(sorted(output.glob("Render_*.mp4"), reverse=True)), None)
 
 
@@ -730,11 +947,12 @@ def bring_file(node, filename, knob_name, x_offset, start_at=None):
             candidates.extend((folder / "EXR/Render.0001.exr", folder / "Render.0001.exr"))
         candidates.append(folder / filename)
         if filename == "Render.mp4":
+            host = node["job_host"].value() or node_host(node)
             try:
-                comfy_root = node_portable_root(node)
+                comfy_root = node_portable_root(node, host)
             except ValueError:
                 comfy_root = None
-            local_video = local_comfy_render(node["job_host"].value(), folder, comfy_root)
+            local_video = local_comfy_render(host, folder, comfy_root)
             if local_video is not None:
                 candidates.append(local_video)
     path = next((item for item in candidates if item.is_file()), None)
