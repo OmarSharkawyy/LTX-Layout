@@ -14,7 +14,9 @@
 | Width / Height | Final canvas dimensions. Use multiples of 64, with a minimum of 128 per dimension. |
 | Place render at | Starting timeline frame for the imported EXR and contact video. |
 | Seed | Noise seed for both sampling stages. |
-| Render folder | Parent folder for numbered runs and source folder for both Bring buttons. |
+| Render folder | Parent folder for numbered runs. Choose an existing run directly to use the Bring buttons.
+| Version | Selects the numbered output folder. Version 1 uses 0001. |
+| Version Up Output | Selects the next unused version. Click Queue Render to render it. |
 | Queue Render | Exports the Nuke inputs, encodes the guide, and submits the job. |
 | Cancel Request | Targets this Gizmo's active ComfyUI job. |
 | Bring Render | Creates a Read for the EXR sequence. Older runs can fall back to an available render MP4. |
@@ -52,4 +54,4 @@ Render folder/
         └── …
 ```
 
-`EXR/` contains the 16-bit half-float ACEScg master from the decoded LTX frames. `Render.mp4` is an H.264 review copy. `ContactSheet.mp4` shows Clay and Look Still on top, with Final Render and a Clay/Final wipe below. The two Bring buttons use the selected run or the current run in the chosen parent directory when available, otherwise the most recent available run there.
+`EXR/` contains the 16-bit half-float ACEScg master from the decoded LTX frames. `Render.mp4` is an H.264 review copy. `ContactSheet.mp4` shows Clay and Look Still on top, with Final Render and a Clay/Final wipe below. Both Bring buttons use the selected Version, or the existing run chosen directly in Render folder. Queue Render protects existing versions. Gizmos saved before the Version control was added retain their automatic numbering.
