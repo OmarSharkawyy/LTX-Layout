@@ -22,9 +22,10 @@ Find **LTX Layout** under **Nodes → ComfyUI**.
 ## Install
 
 1. Download the repository from **Code → Download ZIP** and extract it. Copy the extracted `ltx-layout-main` folder into `%USERPROFILE%\.nuke`. Confirm that `menu.py` and `LTXLayoutStudio.gizmo` are directly inside that folder.
-2. Add this line once to `.nuke/init.py`:
+2. Open `%USERPROFILE%\.nuke\init.py`, or create it if it is missing. Add this block near the top, keeping the existing contents. If you already added an LTX Layout path, replace that entry.
 
    ```python
+   import nuke
    nuke.pluginAddPath("./ltx-layout-main")
    ```
 
