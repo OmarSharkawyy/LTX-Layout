@@ -2,6 +2,8 @@
 
 Turn a clay render or playblast into a finished shot from Nuke. Connect the animated layout and a look reference, then click **Queue Render**. ComfyUI runs the two-stage LTX-2.5 workflow in the background. Bring the finished EXRs and the comparison video back into your comp as Read nodes.
 
+**Setup links** · [Install LTX Layout](#install) · [Download Nuke](https://downloads.foundry.com/nuke) · [Install ComfyUI](https://docs.comfy.org/installation/comfyui_portable_windows) · [LTXVideo nodes](https://github.com/Lightricks/ComfyUI-LTXVideo) · [OCIO nodes](https://github.com/SlavaSexton/ComfyUI-OCIO) · [Model files](docs/INSTALLATION.md#1-prepare-comfyui) · [Download FFmpeg](https://ffmpeg.org/download.html)
+
 ## Gizmo
 
 Find **LTX Layout** under **Nodes → ComfyUI**.
@@ -37,6 +39,12 @@ For exact model filenames, dependency setup, and a short verification render, se
 2. Set the prompt, output size, and **Render folder**. The default output is **768×448**. Use multiples of 64 for width and height. LTX may trim the input range to a supported `8n+1` frame count.
 3. Click **Queue Render**. Watch **Status** for progress. Use **Cancel Request** to stop this gizmo’s active job.
 4. Click **Bring Render** for the EXR sequence or **Bring Contact Sheet** for the comparison MP4. Each button creates a separate Read, starting at **Place render at**.
+
+## Standalone ComfyUI workflow
+
+The standard Lightricks Layout to Render workflow saves a video. The ACEScg EXR sequence and the 2×2 comparison are outputs added by this Nuke gizmo. [Lightricks workflow guide](https://docs.ltx.io/open-source-model/vfx-post-production/layout-to-render)
+
+A regular SDR clay render or playblast works as input. There is no need to convert the source video to ACES first. When reading SDR footage in Nuke, assign the Read its actual source color space, such as sRGB or Rec.709. The gizmo delivers the final EXR sequence in ACEScg.
 
 ## Output
 
