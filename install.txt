@@ -29,7 +29,7 @@ Omar El Sharkawy
        import nuke
        nuke.pluginAddPath("./ltx-layout-main")
 
-   Start Nuke and create a fresh node from ComfyUI > LTX Layout. Older nodes
+   Start Nuke and create a fresh node from ComfyUI > LTX Layout Studio. Older nodes
    saved in an existing script may keep their old interface.
 
 3. RUN YOUR FIRST RENDER
@@ -42,7 +42,8 @@ Omar El Sharkawy
 
    Enter a 9-frame range, such as First 1001 and Last 1009. Start at
    512x320. Set Render folder to a writable folder.
-   Queue Render creates a numbered run directory such as 0001.
+   Queue Render creates the selected Version directory, such as 0001.
+   Click Version Up Output to select the next unused version.
    Bring Render imports EXR/Render.####.exr. Bring Contact Sheet imports the
    2×2 ContactSheet.mp4. Both buttons create a Read next to the gizmo.
    FFmpeg builds the contact sheet after rendering, with no additional
