@@ -33,7 +33,10 @@ def main():
     }, "The contact sheet must not depend on ComfyUI image-grid nodes."
     catalog = {step["class_type"]: {"input": {"required": {}}} for step in template.values()}
     for key, (node_id, field) in bridge.MODEL_INPUTS.items():
-        catalog[template[node_id]["class_type"]]["input"]["required"][field] = [[model_names[key]]]
+        options = [model_names[key]]
+        catalog[template[node_id]["class_type"]]["input"]["required"][field] = (
+            ["COMBO", {"options": options}] if key in ("layout_lora", "upscaler") else [options]
+        )
     catalog["OCIOWrite"] = {"input": {"required": {
         "input_colorspace": [["sRGB - Display"]],
         "output_colorspace": [["ACEScg"]],
@@ -117,6 +120,22 @@ def server_test(bridge, nuke, settings, catalog, run, staging, ffmpeg, sequence,
 
     def exercise(host):
         assert bridge.verify_setup(host, ffmpeg, settings[5]).startswith("Setup passed")
+        wrong = {**settings[5], "layout_lora": "missing-lora", "upscaler": "missing-upscaler"}
+        try:
+            bridge.verify_setup(host, ffmpeg, wrong)
+        except RuntimeError as error:
+            assert "missing-lora" in str(error) and "missing-upscaler" in str(error)
+        else:
+            raise AssertionError("Check Setup accepted missing V3 model choices.")
+        node_id, field = bridge.MODEL_INPUTS["layout_lora"]
+        required = catalog[bridge.build_prompt("Clay.mp4", "LookStill.png", *settings)[node_id]["class_type"]]["input"]["required"]
+        with patch.dict(required, {field: ["COMBO", {}]}):
+            try:
+                bridge.verify_setup(host, ffmpeg, settings[5])
+            except RuntimeError as error:
+                assert "Could not verify model choices" in str(error)
+            else:
+                raise AssertionError("An unknown combo schema passed Check Setup.")
         bridge.publish = lambda *args, **kwargs: events.append((args, kwargs))
         bridge.render(("fixture", "fixture-token", "fixture-script"), host, run, None,
                       (Path(staging.name) / "Clay.mp4", look, settings),
@@ -225,6 +244,42 @@ def server_test(bridge, nuke, settings, catalog, run, staging, ffmpeg, sequence,
     bridge.version_up(node)
     assert node["output_version"].value() == 3
     assert Path(node["render_dir"].value()) == run.parent
+
+    retry_root = run.parent / "retry"
+    retry = GraphicsNode(
+        render_dir=str(retry_root), output_version=1, clay_first=1, clay_last=9,
+        match_clay_first=True, ffmpeg_path=ffmpeg, server="http://127.0.0.1:8188",
+        render_width=128, render_height=128, seed_text="42", positive="", negative="",
+        job_status="", **settings[5],
+    )
+    retry.input = lambda _: object()
+    with patch.object(nuke, "root", return_value={"fps": Knob(24)}), \
+         patch.object(nuke, "message") as message, \
+         patch.object(bridge, "node_portable_root", return_value=None), \
+         patch.object(bridge.client, "json_request", side_effect=RuntimeError("offline")) as request, \
+         patch.object(bridge, "export_input") as export:
+        bridge.queue(retry)
+        request.assert_called_once_with("http://127.0.0.1:8188", "/system_stats", timeout=5)
+        export.assert_not_called()
+        assert not retry_root.exists()
+        message.assert_called_once()
+    with patch.object(nuke, "root", return_value={"fps": Knob(24)}), \
+         patch.object(nuke, "message"), \
+         patch.object(bridge, "node_portable_root", return_value=None), \
+         patch.object(bridge, "check_server"), \
+         patch.object(bridge, "export_input", side_effect=RuntimeError("Nuke export failed")):
+        bridge.queue(retry)
+        assert not (retry_root / "0001").exists()
+    retry_run = bridge.new_render_folder(retry_root, 1)
+    (retry_run / "ComfyRun.txt").write_text("fixture", encoding="utf-8")
+    worker_staging = tempfile.TemporaryDirectory(dir=retry_run)
+    with patch.object(bridge, "check_server", side_effect=RuntimeError("offline after export")), \
+         patch.object(bridge, "publish") as publish:
+        bridge.render(("fixture", "token", "script"), "http://127.0.0.1:8188", retry_run, None,
+                      (Path(worker_staging.name) / "Clay.mp4", look, settings),
+                      (worker_staging, ffmpeg, sequence, 1, 9, 24, None))
+        assert not retry_run.exists()
+        assert publish.call_args.kwargs["terminal"]
 
 
 if __name__ == "__main__":
