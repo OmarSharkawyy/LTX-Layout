@@ -17,7 +17,7 @@ Find **LTX Layout Studio** under **Nodes → ComfyUI**.
 
 - **Nuke on Windows.** The development target is **Nuke 16.0v5**. See [Nuke compatibility](docs/COMPATIBILITY.md) for the status of other versions.
 - **ComfyUI** with [ComfyUI-LTXVideo](https://github.com/Lightricks/ComfyUI-LTXVideo), [ComfyUI-OCIO](https://github.com/SlavaSexton/ComfyUI-OCIO), and the [LTX-2.5 model files](docs/INSTALLATION.md#1-prepare-comfyui).
-- [**FFmpeg**](https://ffmpeg.org/download.html) with `libx264` and standard video filters. Use a full Windows build on PATH or the executable bundled with your ComfyUI Portable installation. **Check Setup** checks the selected build.
+- [**FFmpeg**](https://ffmpeg.org/download.html) with `libx264` and standard video filters. The gizmo finds it automatically: on PATH, in common install folders (winget, Chocolatey, Scoop, `C:\ffmpeg`), or the copy bundled with ComfyUI. **Check Setup** shows and checks the build it found.
 
 ## Install
 
@@ -30,7 +30,7 @@ Find **LTX Layout Studio** under **Nodes → ComfyUI**.
    ```
 
 3. Start ComfyUI, then restart Nuke and add **ComfyUI → LTX Layout Studio**.
-4. Open the gizmo’s **Settings** and check the ComfyUI URL. The default is `http://127.0.0.1:8188`. If FFmpeg is outside PATH, use **Set FFmpeg** to select it, or **Set ComfyUI Folder** to select the Portable install’s `ComfyUI/main.py`. Run **Check Setup** before your first render.
+4. Open the gizmo’s **Settings** and check the ComfyUI URL. The default is `http://127.0.0.1:8188`. Run **Check Setup** before your first render. It finds FFmpeg and the local ComfyUI folder automatically and shows what it found; you are only asked to pick `ffmpeg.exe` if nothing is found.
 
 For exact model filenames, dependency setup, and a short verification render, see the [installation guide](docs/INSTALLATION.md). To update, replace the files in your existing plugin folder, restart Nuke, and create a fresh gizmo.
 

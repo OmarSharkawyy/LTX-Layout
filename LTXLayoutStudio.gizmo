@@ -50,9 +50,8 @@ Gizmo {
  server http://127.0.0.1:8188
  addUserKnob {2 ffmpeg_path +INVISIBLE}
  addUserKnob {2 comfy_root +INVISIBLE}
- addUserKnob {22 set_ffmpeg l "Set FFmpeg" +STARTLINE t "Choose FFmpeg if it is not on PATH." T "from ltx_layout_studio import bridge; bridge.set_setup_path(nuke.thisNode(), 'ffmpeg')"}
- addUserKnob {22 set_comfy l "Set ComfyUI Folder" -STARTLINE t "Select main.py inside your local ComfyUI Portable installation." T "from ltx_layout_studio import bridge; bridge.set_setup_path(nuke.thisNode(), 'comfy')"}
- addUserKnob {22 check_setup l "Check Setup" -STARTLINE t "Check FFmpeg, the ComfyUI server, workflow nodes, model names, and the EXR colorspace options." T "from ltx_layout_studio import bridge; bridge.check_setup(nuke.thisNode())"}
+ addUserKnob {22 check_setup l "Check Setup" +STARTLINE t "Find FFmpeg and the local ComfyUI folder automatically, then check the ComfyUI server, workflow nodes, model names, and the EXR colorspace options." T "from ltx_layout_studio import bridge; bridge.check_setup(nuke.thisNode())"}
+ addUserKnob {26 detected_paths l "" +STARTLINE T "FFmpeg and the ComfyUI folder are found automatically. Click Check Setup to see them."}
  addUserKnob {26 settings_frames l "" +STARTLINE T "<b>Inputs and timing</b><br>Clay sets the layout and movement. Look Still sets the appearance.<br>First / Last select the Clay timeline range at the project FPS.<br>Use Clay Range copies the connected node's range. LTX may trim the end to 8n+1 frames.<br>Match Look Still uses the Clay First frame number. Turn it off to choose Look frame independently."}
  addUserKnob {26 settings_prompts l "" +STARTLINE T "<b>Prompts and seed</b><br>Positive describes the desired look and scene. Negative describes features to avoid.<br>Seed sets the noise for both passes. Use the same seed when comparing changes."}
  addUserKnob {26 settings_output l "" +STARTLINE T "<b>Output and import</b><br>Width / Height set final pixels and must be multiples of 64.<br>Place render at sets the timeline start of the imported Reads.<br>Version selects a numbered run within Render folder. Version Up Output selects the next unused version. Bring Render reads the ACEScg EXRs.<br>Bring Contact Sheet reads the 2×2 comparison MP4 from the same run."}
