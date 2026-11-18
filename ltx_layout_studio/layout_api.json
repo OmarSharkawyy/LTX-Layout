@@ -503,52 +503,5 @@
         0
       ]
     }
-  },
-  "9045": {
-    "class_type": "GetVideoComponents",
-    "inputs": {
-      "video": [
-        "5518:4849",
-        0
-      ]
-    }
-  },
-  "9046": {
-    "class_type": "RandomImageFromBatch",
-    "inputs": {
-      "start_index": 0,
-      "end_index": -1,
-      "num_frames": 9,
-      "randomness": 0.0,
-      "min_distance": 0,
-      "max_distance": 0,
-      "seed": 0,
-      "input": [
-        "9045",
-        0
-      ]
-    }
-  },
-  "9047": {
-    "class_type": "ImageConcatFromBatch",
-    "inputs": {
-      "num_columns": 3,
-      "match_image_size": false,
-      "max_resolution": 1920,
-      "images": [
-        "9046",
-        0
-      ]
-    }
-  },
-  "9048": {
-    "class_type": "SaveImage",
-    "inputs": {
-      "filename_prefix": "output_ContactSheet",
-      "images": [
-        "9047",
-        0
-      ]
-    }
   }
 }

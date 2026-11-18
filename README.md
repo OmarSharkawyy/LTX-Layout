@@ -17,7 +17,7 @@ Find **LTX Layout** under **Nodes → ComfyUI**.
 
 - **Nuke on Windows.** The development target is **Nuke 16.0v5**. See [Nuke compatibility](docs/COMPATIBILITY.md) for the status of other versions.
 - **ComfyUI** with [ComfyUI-LTXVideo](https://github.com/Lightricks/ComfyUI-LTXVideo), [ComfyUI-OCIO](https://github.com/SlavaSexton/ComfyUI-OCIO), and the [LTX-2.5 model files](docs/INSTALLATION.md#1-prepare-comfyui).
-- [**FFmpeg**](https://ffmpeg.org/download.html) with `libx264`. Use FFmpeg on PATH or the executable bundled with your ComfyUI Portable installation.
+- [**FFmpeg**](https://ffmpeg.org/download.html) with `libx264` and standard video filters. Use a full Windows build on PATH or the executable bundled with your ComfyUI Portable installation. **Check Setup** checks the selected build.
 
 ## Install
 
@@ -55,6 +55,8 @@ Each job creates a numbered folder under **Render folder**, starting at `0001`.
 | `EXR/Render.####.exr` | Final frames in **ACEScg**, 16-bit half-float. |
 | `Render.mp4` | H.264 review copy of the final render. |
 | `ContactSheet.mp4` | A 2×2 review with Clay and Look Still above, and Final Render and a Clay/Final wipe below. |
+
+The gizmo builds the Contact Sheet on the Nuke machine with FFmpeg. It uses no ComfyUI Contact Sheet node or KJNodes dependency.
 
 Select a specific numbered folder to bring an older render back into Nuke without queueing again. See [Controls and output](docs/CONTROLS.md) for every setting and the full folder structure.
 

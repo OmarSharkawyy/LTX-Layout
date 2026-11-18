@@ -24,6 +24,7 @@ MODEL_INPUTS = {
     "upscaler": ("5004:9035", "model_name"),
 }
 ACTIVE = {}
+CONTACT_FILTERS = {"crop", "fps", "hstack", "pad", "scale", "setsar", "split", "tpad", "xstack"}
 
 
 def new_render_folder(base):
@@ -77,8 +78,6 @@ def build_prompt(clay, look, width, height, seed, positive, negative, models, jo
     prompt["4852"]["inputs"].update({
         "filename_prefix": prefix + "/Render", "format": "mp4", "format.codec": "h264",
     })
-    for node_id in ("9045", "9046", "9047", "9048"):
-        prompt.pop(node_id, None)
     return prompt
 
 
@@ -203,12 +202,27 @@ def set_setup_path(node, kind):
         nuke.message(str(error))
 
 
+def ffmpeg_names(ffmpeg, listing):
+    output = subprocess.check_output(
+        [ffmpeg, "-hide_banner", listing], stderr=subprocess.STDOUT, text=True,
+        timeout=12, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    return {columns[1] for line in output.splitlines()
+            if len(columns := line.split()) >= 3}
+
+
+def contact_filters(ffmpeg):
+    available = ffmpeg_names(ffmpeg, "-filters")
+    missing = sorted(CONTACT_FILTERS - available)
+    if missing:
+        raise RuntimeError("FFmpeg is missing contact sheet filters: " + ", ".join(missing) + ". Select a full build.")
+    return available
+
+
 def verify_setup(host, ffmpeg, models):
-    executable = subprocess.check_output([ffmpeg, "-hide_banner", "-encoders"],
-                                         stderr=subprocess.STDOUT, text=True, timeout=12,
-                                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-    if "libx264" not in executable:
+    if "libx264" not in ffmpeg_names(ffmpeg, "-encoders"):
         raise RuntimeError("FFmpeg must include the libx264 encoder.")
+    contact_filters(ffmpeg)
     stats = client.json_request(host, "/system_stats")
     if not isinstance(stats, dict) or "system" not in stats:
         raise RuntimeError("That URL did not return ComfyUI system information.")
@@ -228,7 +242,17 @@ def verify_setup(host, ffmpeg, models):
     if missing_models:
         raise RuntimeError("Model names not found on the server:\n" + "\n".join(missing_models))
     add_exr_output(host, prompt, Path("setup_check"), catalog)
-    return f"Setup passed: FFmpeg, {len(required)} node types, model filenames, and sRGB to ACEScg."
+    incompatible = set()
+    for step in prompt.values():
+        node_type = step["class_type"]
+        required_inputs = catalog[node_type].get("input", {}).get("required", {})
+        missing_inputs = sorted(required_inputs.keys() - step["inputs"].keys())
+        if missing_inputs:
+            incompatible.add(f"{node_type}: {', '.join(missing_inputs)}")
+    if incompatible:
+        raise RuntimeError("Installed node versions expect inputs this workflow does not supply:\n"
+                           + "\n".join(sorted(incompatible)))
+    return f"Setup passed: FFmpeg encoder and contact sheet filters, {len(required)} node types, model filenames, and sRGB to ACEScg."
 
 
 def check_setup(node):
@@ -288,6 +312,7 @@ def encode_clay(ffmpeg, sequence, first, last, fps, destination):
 
 
 def make_contact_video(ffmpeg, clay, look, video, destination, width, height, fps, frame_count):
+    available_filters = contact_filters(ffmpeg)
     panel_width = min(width, 960)
     panel_height = max(2, round(height * panel_width / width / 2) * 2)
     font = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts/segoeui.ttf"
@@ -310,7 +335,7 @@ def make_contact_video(ffmpeg, clay, look, video, destination, width, height, fp
         "[left][right]hstack=inputs=2:shortest=1[tile3]",
     ))
     layout = "[tile0][tile1][tile2][tile3]"
-    if font.is_file():
+    if font.is_file() and "drawtext" in available_filters:
         for index, caption in enumerate(("CLAY LAYOUT", "LOOK STILL", "FINAL RENDER", "CLAY / FINAL WIPE")):
             filters.append(f"[tile{index}]drawtext=fontfile='{font_arg}':text='{caption}':"
                            f"fontsize=16:fontcolor=white:box=1:boxcolor=black@0.66:boxborderw=5:x=14:y=14[p{index}]")

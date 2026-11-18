@@ -14,7 +14,7 @@
 | Layout LoRA | `ltx-2.5-22b-ic-lora-layout-to-render-1.0.safetensors` | `loras/` |
 | Latent upscaler | `ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors` | `latent_upscale_models/` |
 
-4. Start ComfyUI and confirm it opens. On the same machine the default URL is `http://127.0.0.1:8188`. The machine running ComfyUI needs the GPU and model files. The machine running Nuke needs FFmpeg and access to the selected render folder.
+4. Start ComfyUI and confirm it opens. On the same machine the default URL is `http://127.0.0.1:8188`. The machine running ComfyUI needs the GPU and model files. The machine running Nuke needs [FFmpeg](https://ffmpeg.org/download.html) and access to the selected render folder. The 2×2 Contact Sheet runs through FFmpeg after rendering, with no extra ComfyUI custom nodes.
 
 ## 2. Install the Nuke plugin
 
@@ -27,7 +27,7 @@
 
 3. Launch Nuke and create **ComfyUI → LTX Layout** from the Nodes toolbar. To update an existing install, update the files inside its existing folder and use a fresh node after restarting Nuke. Older nodes saved in an existing script can retain older controls.
 4. In **Settings**, set the ComfyUI URL. If FFmpeg is on PATH, the Gizmo finds it automatically. Otherwise click **Set FFmpeg** and choose `ffmpeg.exe`, or click **Set ComfyUI Folder** and choose the Portable install's `ComfyUI/main.py` to use its bundled binary. FFmpeg needs the `libx264` encoder and the filters used for the 2×2 comparison.
-5. Run **Check Setup**. It checks FFmpeg, the server, node types, model filenames, and available sRGB/ACEScg entries. A successful check still needs a render on the target machine.
+5. Run **Check Setup**. It checks FFmpeg's H.264 encoder and comparison filters, the server, workflow node types and required inputs, model filenames, and available sRGB/ACEScg entries. Run a short render after the check passes.
 
 ## 3. Verify a clean installation
 

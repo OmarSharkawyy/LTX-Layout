@@ -11,6 +11,7 @@ import tempfile
 import threading
 import types
 from urllib.parse import parse_qs, urlsplit
+from unittest.mock import patch
 
 
 def main():
@@ -27,6 +28,9 @@ def main():
     model_names = {key: f"{key}-fixture.safetensors" for key in bridge.MODEL_INPUTS}
     settings = (128, 128, 42, "Clay figure in winter clothes", "", model_names, "clean_fixture")
     template = bridge.build_prompt("Clay.mp4", "LookStill.png", *settings)
+    assert not {"RandomImageFromBatch", "ImageConcatFromBatch", "SaveImage"} & {
+        step["class_type"] for step in template.values()
+    }, "The contact sheet must not depend on ComfyUI image-grid nodes."
     catalog = {step["class_type"]: {"input": {"required": {}}} for step in template.values()}
     for key, (node_id, field) in bridge.MODEL_INPUTS.items():
         catalog[template[node_id]["class_type"]]["input"]["required"][field] = [[model_names[key]]]
@@ -60,6 +64,19 @@ def main():
                         look, fixture_video, fixture_exr, args.offline)
         finally:
             staging.cleanup()
+        available = bridge.contact_filters(ffmpeg)
+        with patch.object(bridge, "ffmpeg_names", return_value=available - {"xstack"}):
+            try:
+                bridge.contact_filters(ffmpeg)
+            except RuntimeError as error:
+                assert "xstack" in str(error)
+            else:
+                raise AssertionError("Check Setup must detect a missing contact sheet filter.")
+        with patch.object(bridge, "contact_filters", return_value=available - {"drawtext"}):
+            unlabelled = run / "ContactSheetNoLabels.mp4"
+            bridge.make_contact_video(ffmpeg, run / "Clay.mp4", run / "LookStill.png",
+                                      run / "Render.mp4", unlabelled, 128, 128, 24, 9)
+            assert unlabelled.stat().st_size > 0
     print("Portable integration passed: new paths, setup, upload, queue, EXRs, review MP4, and both Reads.")
 
 

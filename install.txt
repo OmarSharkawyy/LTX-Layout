@@ -17,7 +17,8 @@ Omar El Sharkawy
 
 2. INSTALL OR UPDATE THE NUKE TOOL
 
-   Close Nuke. Copy the LTX_Layout_Studio folder into %USERPROFILE%\.nuke.
+   Download the GitHub ZIP and extract it. Close Nuke. Rename the extracted
+   folder to LTX_Layout_Studio and copy it into %USERPROFILE%\.nuke.
    For an update, replace the files inside the existing folder.
 
    Confirm that LTXLayoutStudio.gizmo is directly inside that folder.
@@ -28,7 +29,7 @@ Omar El Sharkawy
    Start Nuke and create a fresh node from ComfyUI > LTX Layout. Older nodes
    saved in an existing script may keep their old interface.
 
-3. RUN A SHORT TEST ON THE TARGET MACHINE
+3. RUN YOUR FIRST RENDER
 
    Connect the animated guide to Clay and the matching image to Look Still.
    In Settings, enter the ComfyUI URL. If FFmpeg is not on PATH, use Set
@@ -41,7 +42,9 @@ Omar El Sharkawy
    Queue Render creates a numbered run directory such as 0001.
    Bring Render imports EXR/Render.####.exr. Bring Contact Sheet imports the
    2×2 ContactSheet.mp4. Both buttons create a Read next to the gizmo.
-   Verify all nine EXRs, the final timeline alignment, and the four panels.
+   FFmpeg builds the contact sheet after rendering, with no additional
+   ComfyUI custom nodes. Verify all nine EXRs, the timeline alignment,
+   and the four panels.
    A successful Check Setup verifies dependencies. A completed Queue verifies
    the actual model, Nuke, GPU, files, and reads on that machine.
 
