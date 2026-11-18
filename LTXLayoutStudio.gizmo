@@ -1,0 +1,93 @@
+Gizmo {
+ inputs 2
+ name LTXLayoutStudio
+ tile_color 0x476581ff
+ addUserKnob {20 layout_tab l "LTX Layout"}
+ addUserKnob {26 guide l "" T "Connect the Clay and Look Still arrows in the Node Graph."}
+ addUserKnob {26 range_title l "" +STARTLINE T "<b>Frame range</b>"}
+ addUserKnob {3 clay_first l First +STARTLINE t "First Nuke timeline frame sent from the Clay input."}
+ clay_first 1
+ addUserKnob {3 clay_last l Last -STARTLINE t "Last requested Clay frame, inclusive. LTX uses 8n+1 frames, so the end may be trimmed."}
+ clay_last 49
+ addUserKnob {22 use_range l "Use Clay Range" -STARTLINE t "Copy the connected Clay node's range and set the render placement to its first frame." T "from ltx_layout_studio import bridge; bridge.use_clay_range(nuke.thisNode())"}
+ addUserKnob {6 match_clay_first l "Match Look Still frame to Clay First" +STARTLINE t "Read the Look Still input at the Clay First frame number. Turn off to choose a different Look frame."}
+ match_clay_first true
+ addUserKnob {3 look_frame l "Look frame" -STARTLINE t "Frame to sample from the Look Still input when frame matching is off."}
+ look_frame 1
+ knobChanged "if nuke.thisKnob().name() in ('match_clay_first', 'showPanel'):\n    nuke.thisNode()['look_frame'].setEnabled(not nuke.thisNode()['match_clay_first'].value())"
+ addUserKnob {26 prompt_title l "" +STARTLINE T "<b>Prompts</b>"}
+ addUserKnob {43 positive +INVISIBLE}
+ positive "Photorealistic spectators in winter jackets in an indoor ice-skating arena, cool soft overhead lighting."
+ addUserKnob {43 negative +INVISIBLE}
+ addUserKnob {52 prompt_editor l "" +STARTLINE T "__import__('ltx_layout_studio.prompt_ui', fromlist=('PromptEditor',)).PromptEditor()"}
+ addUserKnob {26 output_title l "" +STARTLINE T "<b>Output</b>"}
+ addUserKnob {3 render_width l Width +STARTLINE t "Final image width in pixels. Use a multiple of 64."}
+ render_width 768
+ addUserKnob {3 render_height l Height -STARTLINE t "Final image height in pixels. Use a multiple of 64."}
+ render_height 448
+ addUserKnob {3 start_at l "Place render at" -STARTLINE t "Timeline frame at which the imported render or contact video begins."}
+ start_at 1
+ addUserKnob {1 seed_text l Seed +STARTLINE t "Starting noise seed for both samplers. Change it for a render variation."}
+ seed_text 42
+ addUserKnob {2 render_dir l "Render folder" +STARTLINE t "Base directory for numbered runs and the files loaded by the Bring buttons."}
+ addUserKnob {22 queue_job l "Queue Render" +STARTLINE T "from ltx_layout_studio import bridge; bridge.queue(nuke.thisNode())"}
+ addUserKnob {22 cancel_job l "Cancel Request" -STARTLINE T "from ltx_layout_studio import bridge; bridge.cancel(nuke.thisNode())"}
+ addUserKnob {22 read_render l "Bring Render" +STARTLINE T "from ltx_layout_studio import bridge; bridge.bring_render(nuke.thisNode())"}
+ addUserKnob {22 read_sheet l "Bring Contact Sheet" -STARTLINE T "from ltx_layout_studio import bridge; bridge.read_sheet(nuke.thisNode())"}
+ addUserKnob {1 job_status l Status +DISABLED +STARTLINE}
+ job_status Idle
+ addUserKnob {1 job_id +INVISIBLE}
+ addUserKnob {1 job_host +INVISIBLE}
+ addUserKnob {1 job_folder +INVISIBLE}
+ addUserKnob {1 sheet_path +INVISIBLE}
+ addUserKnob {1 video_path +INVISIBLE}
+ addUserKnob {20 settings_tab l Settings}
+ addUserKnob {1 server l "ComfyUI URL" t "Base URL of the running ComfyUI server holding the LTX models and OCIO Write node."}
+ server http://127.0.0.1:8188
+ addUserKnob {2 ffmpeg_path +INVISIBLE}
+ addUserKnob {2 comfy_root +INVISIBLE}
+ addUserKnob {22 set_ffmpeg l "Set FFmpeg" +STARTLINE t "Choose FFmpeg if it is not on PATH." T "from ltx_layout_studio import bridge; bridge.set_setup_path(nuke.thisNode(), 'ffmpeg')"}
+ addUserKnob {22 set_comfy l "Set ComfyUI Folder" -STARTLINE t "Select main.py inside your local ComfyUI Portable installation." T "from ltx_layout_studio import bridge; bridge.set_setup_path(nuke.thisNode(), 'comfy')"}
+ addUserKnob {22 check_setup l "Check Setup" -STARTLINE t "Check FFmpeg, the ComfyUI server, workflow nodes, model names, and the EXR colorspace options." T "from ltx_layout_studio import bridge; bridge.check_setup(nuke.thisNode())"}
+ addUserKnob {26 settings_frames l "" +STARTLINE T "<b>Inputs and timing</b><br>Clay sets the layout and movement. Look Still sets the appearance.<br>First / Last select the Clay timeline range at the project FPS.<br>Use Clay Range copies the connected node's range. LTX may trim the end to 8n+1 frames.<br>Match Look Still uses the Clay First frame number. Turn it off to choose Look frame independently."}
+ addUserKnob {26 settings_prompts l "" +STARTLINE T "<b>Prompts and seed</b><br>Positive describes the desired look and scene. Negative describes features to avoid.<br>Seed sets the noise for both passes. Use the same seed when comparing changes."}
+ addUserKnob {26 settings_output l "" +STARTLINE T "<b>Output and import</b><br>Width / Height set final pixels and must be multiples of 64.<br>Place render at sets the timeline start of the imported Reads.<br>Render folder stores numbered runs. Bring Render reads the ACEScg EXRs.<br>Bring Contact Sheet reads the 2×2 comparison MP4 from the same run."}
+ addUserKnob {26 settings_jobs l "" +STARTLINE T "<b>Jobs and models</b><br>Queue Render exports both inputs and submits them to ComfyUI.<br>Cancel Request targets this gizmo's active job. Status shows progress or errors.<br>Transformer runs LTX. Text encoder reads prompts. Video VAE decodes frames.<br>Layout LoRA follows the guides. Latent upscaler doubles the first-pass resolution."}
+ addUserKnob {20 models_tab l Models}
+ addUserKnob {1 transformer l Transformer t "Distilled LTX-2.5 diffusion model filename on the ComfyUI server."}
+ transformer ltx-2.5-22b-distilled-transformer-bf16.safetensors
+ addUserKnob {1 text_encoder l "Text encoder" t "Gemma text encoder filename used for local prompt encoding."}
+ text_encoder gemma4-12b-with-proj-ltx-2.5-bf16.safetensors
+ addUserKnob {1 video_vae l "Video VAE" t "Video VAE filename for encoding guides and decoding LTX frames."}
+ video_vae ltx-2.5-video-vae-bf16.safetensors
+ addUserKnob {1 layout_lora l "Layout LoRA" t "Layout-to-Render IC-LoRA filename for conditioning on the Clay and Look Still."}
+ layout_lora ltx-2.5-22b-ic-lora-layout-to-render-1.0.safetensors
+ addUserKnob {1 upscaler l "Latent upscaler" t "LTX x2 spatial latent upscaler filename for the second pass."}
+ upscaler ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors
+}
+ Input {
+  inputs 0
+  name Clay
+  number 0
+  xpos -220
+  ypos -100
+ }
+ Input {
+  inputs 0
+  name Look_Still
+  number 1
+  xpos 220
+  ypos -100
+ }
+ Read {
+  inputs 0
+  name RenderedVideo
+  xpos 0
+  ypos 0
+ }
+ Output {
+  name Output1
+  xpos 0
+  ypos 100
+ }
+end_group

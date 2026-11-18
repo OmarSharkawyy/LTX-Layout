@@ -1,0 +1,50 @@
+LTX LAYOUT
+Windows installation | Nuke 16 | ComfyUI
+Omar El Sharkawy
+
+1. PREPARE COMFYUI
+
+   Install the LTXVideo and ComfyUI-OCIO custom nodes in an existing
+   ComfyUI installation. Check that OCIO Write exposes sRGB and ACEScg.
+   https://github.com/Lightricks/ComfyUI-LTXVideo
+   https://docs.ltx.io/open-source-model/vfx-post-production/layout-to-render
+
+   Install the LTX-2.5 files listed in the official guide and enter the exact
+   filenames in the Models tab. Start ComfyUI. Install FFmpeg with libx264
+   and make it available on PATH, or use an existing ComfyUI Portable
+   imageio_ffmpeg executable. The package includes neither model weights
+   nor FFmpeg binaries.
+
+2. INSTALL OR UPDATE THE NUKE TOOL
+
+   Close Nuke. Copy the LTX_Layout_Studio folder into %USERPROFILE%\.nuke.
+   For an update, replace the files inside the existing folder.
+
+   Confirm that LTXLayoutStudio.gizmo is directly inside that folder.
+   In .nuke/init.py, add this once if it is missing:
+
+       nuke.pluginAddPath("./LTX_Layout_Studio")
+
+   Start Nuke and create a fresh node from ComfyUI > LTX Layout. Older nodes
+   saved in an existing script may keep their old interface.
+
+3. RUN A SHORT TEST ON THE TARGET MACHINE
+
+   Connect the animated guide to Clay and the matching image to Look Still.
+   In Settings, enter the ComfyUI URL. If FFmpeg is not on PATH, use Set
+   FFmpeg to select its executable, or Set ComfyUI Folder to select the
+   local Portable install's ComfyUI/main.py. Click Check Setup and resolve
+   any dependency, model name, or colorspace error.
+
+   Enter a 9-frame range, such as First 1001 and Last 1009. Start at
+   512x320. Set Render folder to a writable folder.
+   Queue Render creates a numbered run directory such as 0001.
+   Bring Render imports EXR/Render.####.exr. Bring Contact Sheet imports the
+   2×2 ContactSheet.mp4. Both buttons create a Read next to the gizmo.
+   Verify all nine EXRs, the final timeline alignment, and the four panels.
+   A successful Check Setup verifies dependencies. A completed Queue verifies
+   the actual model, Nuke, GPU, files, and reads on that machine.
+
+4. LICENSES
+
+   See LICENSE_LTX_Layout.txt, ATTRIBUTION.txt, and THIRD_PARTY_LICENSES.

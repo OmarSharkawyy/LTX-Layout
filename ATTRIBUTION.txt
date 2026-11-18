@@ -1,0 +1,25 @@
+LTX LAYOUT
+
+Original Nuke integration, controls, EXR delivery, and comparison video by
+Omar El Sharkawy.
+
+The bundled layout_api.json adapts the official LTX-2.5 Layout to Render
+ComfyUI workflow by Lightricks. The API graph was flattened and its inputs
+were adapted for Nuke, with a separate EXR output added at runtime.
+https://docs.ltx.io/open-source-model/vfx-post-production/layout-to-render
+https://github.com/Lightricks/ComfyUI-LTXVideo
+
+LTX-2.5 and the Layout-to-Render IC-LoRA are by Lightricks. The model weights
+and LoRA are installed separately and are governed by their upstream terms.
+Official LTX-2.x Community License Agreement
+https://github.com/Lightricks/LTX-2/blob/main/LICENSE-2_x
+LTX-2.5 model card
+https://huggingface.co/Lightricks/LTX-2.5
+Layout-to-Render IC-LoRA model card
+https://huggingface.co/Lightricks/LTX-2.5-22b-IC-LoRA-Layout-To-Render
+
+The ComfyUI-LTXVideo repository publishes its own license notice.
+https://github.com/Lightricks/ComfyUI-LTXVideo/blob/master/LICENSE
+
+See LICENSE_LTX_Layout.txt for the original Nuke integration and the
+THIRD_PARTY_LICENSES folder for the upstream license texts.
