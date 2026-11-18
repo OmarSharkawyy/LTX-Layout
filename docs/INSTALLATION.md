@@ -26,7 +26,7 @@
    nuke.pluginAddPath("./ltx-layout-main")
    ```
 
-3. Launch Nuke and create **ComfyUI → LTX Layout** from the Nodes toolbar. To update an existing install, update the files inside its existing folder and use a fresh node after restarting Nuke. Older nodes saved in an existing script can retain older controls.
+3. Launch Nuke and create **ComfyUI → LTX Layout Studio** from the Nodes toolbar. To update an existing install, update the files inside its existing folder and use a fresh node after restarting Nuke. Older nodes saved in an existing script can retain older controls.
 4. In **Settings**, set the ComfyUI URL. If FFmpeg is on PATH, the Gizmo finds it automatically. Otherwise click **Set FFmpeg** and choose `ffmpeg.exe`, or click **Set ComfyUI Folder** and choose the Portable install's `ComfyUI/main.py` to use its bundled binary. FFmpeg needs the `libx264` encoder and the filters used for the 2×2 comparison.
 5. Run **Check Setup**. It checks FFmpeg's H.264 encoder and comparison filters, the server, workflow node types and required inputs, model filenames, and available sRGB/ACEScg entries. Run a short render after the check passes.
 
@@ -37,6 +37,6 @@ Use a short animated Clay clip and a matching Look Still for the same compositio
 - `0001/EXR/Render.0001.exr` through `Render.0009.exr` exist and have the chosen dimensions.
 - `0001/ContactSheet.mp4` plays all nine frames at the project FPS and contains four panels.
 - **Bring Render** and **Bring Contact Sheet** each create a Read next to the Gizmo. Both start at **Place render at**.
-- Run a second job in the same folder to verify **0002**. Change **Render folder** to a different existing job or base folder and repeat the Bring checks before recording that build as verified.
+- Click **Version Up Output** and run a second job in the same folder to verify **0002**. Change **Render folder** to a different existing job or base folder and repeat the Bring checks before recording that build as verified.
 
 The repository includes a [fixture-based integration test](COMPATIBILITY.md#automated-bridge-test) for the Python and file workflow.
