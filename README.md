@@ -1,61 +1,60 @@
 # LTX Layout
 
-Nuke 16 Gizmo by Omar El Sharkawy for the two-stage LTX-2.5 Layout to Render ComfyUI workflow. The final render is a 16-bit half-float ACEScg EXR sequence. The 2×2 comparison video shows Clay, Look Still, Final Render, and a Clay / Final wipe.
+Turn a clay render or playblast into a finished shot from Nuke. Connect the animated layout and a look reference, then click **Queue Render**. ComfyUI runs the two-stage LTX-2.5 workflow in the background. Bring the finished EXRs and the comparison video back into your comp as Read nodes.
 
-**Development target:** Windows with Nuke 16.0v5. Other Nuke 16 builds and Nuke 17 are compatibility candidates. Nuke 14 and 15 are experimental candidates via PySide2. See the [compatibility matrix](docs/COMPATIBILITY.md) for what has been tested.
+## Gizmo
+
+Find **LTX Layout** under **Nodes → ComfyUI**.
+
+| Input | What to connect |
+| --- | --- |
+| **Clay** | An animated layout, clay render, or playblast that defines the framing and movement. |
+| **Look Still** | An art-directed still of the same composition, usually based on the first Clay frame. |
+
+## Requirements
+
+- **Nuke on Windows.** The development target is **Nuke 16.0v5**. See [Nuke compatibility](docs/COMPATIBILITY.md) for the status of other versions.
+- **ComfyUI** with [ComfyUI-LTXVideo](https://github.com/Lightricks/ComfyUI-LTXVideo), [ComfyUI-OCIO](https://github.com/SlavaSexton/ComfyUI-OCIO), and the [LTX-2.5 model files](docs/INSTALLATION.md#1-prepare-comfyui).
+- **FFmpeg** with `libx264`. Use FFmpeg on PATH or the executable bundled with your ComfyUI Portable installation.
+
+## Install
+
+1. Download the repository from **Code → Download ZIP** and extract it. Rename the extracted folder to `LTX_Layout_Studio` and place it in `%USERPROFILE%\.nuke`. Confirm that `menu.py` and `LTXLayoutStudio.gizmo` are directly inside that folder.
+2. Add this line once to `.nuke/init.py`:
+
+   ```python
+   nuke.pluginAddPath("./LTX_Layout_Studio")
+   ```
+
+3. Start ComfyUI, then restart Nuke and add **ComfyUI → LTX Layout**.
+4. Open the gizmo’s **Settings** and check the ComfyUI URL. The default is `http://127.0.0.1:8188`. If FFmpeg is outside PATH, use **Set FFmpeg** to select it, or **Set ComfyUI Folder** to select the Portable install’s `ComfyUI/main.py`. Run **Check Setup** before your first render.
+
+For exact model filenames, dependency setup, and a short verification render, see the [installation guide](docs/INSTALLATION.md). To update, replace the files in your existing plugin folder, restart Nuke, and create a fresh gizmo.
+
+## Use
+
+1. Connect **Clay** and **Look Still**. Click **Use Clay Range** or enter **First** and **Last**. The gizmo samples the Look Still at the first Clay frame by default. Turn off **Match Look Still frame to Clay First** to choose a different frame.
+2. Set the prompt, output size, and **Render folder**. The default output is **768×448**. Use multiples of 64 for width and height. LTX may trim the input range to a supported `8n+1` frame count.
+3. Click **Queue Render**. Watch **Status** for progress. Use **Cancel Request** to stop this gizmo’s active job.
+4. Click **Bring Render** for the EXR sequence or **Bring Contact Sheet** for the comparison MP4. Each button creates a separate Read, starting at **Place render at**.
+
+## Output
+
+Each job creates a numbered folder under **Render folder**, starting at `0001`.
+
+| File | Contents |
+| --- | --- |
+| `EXR/Render.####.exr` | Final frames in **ACEScg**, 16-bit half-float. |
+| `Render.mp4` | H.264 review copy of the final render. |
+| `ContactSheet.mp4` | A 2×2 review with Clay and Look Still above, and Final Render and a Clay/Final wipe below. |
+
+Select a specific numbered folder to bring an older render back into Nuke without queueing again. See [Controls and output](docs/CONTROLS.md) for every setting and the full folder structure.
 
 ## Documentation
 
-- [Installation from scratch and model placement](docs/INSTALLATION.md)
-- [Every control and render-folder contents](docs/CONTROLS.md)
-- [Compatibility, smoke test, and validation status](docs/COMPATIBILITY.md)
+- [Nuke compatibility and smoke test](docs/COMPATIBILITY.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [Repository metadata and draft release notes](REPO_SETUP.md)
-
-## Open in Nuke
-
-Extract the folder. For this session, run this in Nuke's Script Editor with the extracted folder path:
-
-~~~python
-nuke.pluginAddPath(r"C:\path\to\LTX_Layout_Studio")
-from ltx_layout_studio.bridge import create
-create()
-~~~
-
-For a permanent menu, put the folder under your .nuke directory and add this line to .nuke/init.py, then restart Nuke:
-
-~~~python
-nuke.pluginAddPath("./LTX_Layout_Studio")
-~~~
-
-Create the Gizmo from **ComfyUI > LTX Layout** in the Nodes menu.
-
-When updating an existing installation, extract the new files into the existing LTX_Layout_Studio folder, restart Nuke, and create a fresh instance to see the new inputs and controls.
-
-## Render
-
-1. Start your existing ComfyUI installation. The default URL is http://127.0.0.1:8188.
-2. Connect the animation branch to **Clay** and the finished first-frame branch to **Look Still**. A Read, FrameHold, or processed Nuke branch works for either input. Choose **First** and **Last**, or click **Use Clay Range**. The Look Still defaults to the first clay frame. Turn off that option to pick a different frame on the Look Still branch.
-3. Set the output dimensions and positive prompt. The default is 768×448. Both inputs fit inside the requested canvas without stretching. For 720p delivery, choose 1280×768 and crop the padding in Nuke when your content is 16:9. **Place render at** sets the Read's position on the timeline.
-4. Click **Queue Render**. Nuke exports the selected frames at the project FPS, then FFmpeg and the ComfyUI job run in the background. For LTX compatibility the range is trimmed to the nearest supported 8n+1 frame count. Use 49 frames at 24 fps for a roughly two-second test. **Cancel Request** cancels this Gizmo's active request.
-5. **Bring Render** loads the EXR sequence as a Read. **Bring Contact Sheet** creates a separate Read for the comparison MP4. Both use **Render folder**. If it contains multiple runs, the Gizmo uses its own current run if present, or the newest available run in the selected folder.
-
-Each run uses a new numbered folder such as **0001** and saves **EXR/Render.####.exr**, **Render.mp4** (review copy), and **ContactSheet.mp4**. If Render folder is blank, the folder defaults to LTXLayoutRenders beside your saved Nuke script or in Documents for an unsaved script. The EXR branch uses decoded LTX frames before video compression. Set the Nuke input colorspace to ACEScg if your config does not expose that name automatically.
-
-Requires the LTX-2.5 Layout to Render nodes and ComfyUI-OCIO with an sRGB input and ACEScg output. Model names are editable on the Models tab. Text encoding runs through the local Gemma text encoder on the selected server.
-
-## Set up on another computer
-
-FFmpeg must provide `libx264`. If it is missing from PATH, open **Settings → Set FFmpeg** to select its executable or **Set ComfyUI Folder** to select the `ComfyUI/main.py` of a local Portable installation with bundled FFmpeg. Unattended setups can use `LTX_LAYOUT_FFMPEG` or `LTX_LAYOUT_COMFY_ROOT`. **Check Setup** checks the selected executable, ComfyUI connection, node types, model filenames, and OCIO colorspaces.
-
-Follow the target-machine test in `install.txt` before marking a new installation as verified. The repository also provides a synthetic integration test:
-
-```powershell
-python tests/smoke.py --ffmpeg "path\to\ffmpeg.exe"
-```
-
-That test uses real media files and a fixture ComfyUI API. Add `--offline` if loopback networking is restricted. It checks the bridge and file handling without running the LTX model or launching Nuke.
 
 ## Licenses
 
-See `LICENSE_LTX_Layout.txt`, `ATTRIBUTION.txt`, and `THIRD_PARTY_LICENSES`. Models and FFmpeg are obtained separately.
+The original Nuke integration by **Omar El Sharkawy** is [MIT-licensed](LICENSE_LTX_Layout.txt). See [attribution](ATTRIBUTION.txt) and the [upstream license texts](THIRD_PARTY_LICENSES) for the adapted Lightricks workflow and model terms. Model weights and FFmpeg are installed separately.
