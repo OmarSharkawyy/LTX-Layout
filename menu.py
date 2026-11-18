@@ -7,7 +7,7 @@ comfy = menu.findItem("ComfyUI")
 if comfy is None:
     comfy = menu.addMenu("ComfyUI")
 
-label = "LTX Layout"
+label = "LTX Layout Studio"
 if comfy.findItem(label) is None:
     index = -1
     for position, item in enumerate(comfy.items()):
