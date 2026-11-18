@@ -27,8 +27,15 @@ ACTIVE = {}
 CONTACT_FILTERS = {"crop", "fps", "hstack", "pad", "scale", "setsar", "split", "tpad", "xstack"}
 
 
-def new_render_folder(base):
+def new_render_folder(base, version=None):
     base.mkdir(parents=True, exist_ok=True)
+    if version is not None:
+        folder = version_folder(base, version)
+        try:
+            folder.mkdir()
+        except FileExistsError as error:
+            raise ValueError(f"{folder} already exists. Use Version Up Output or choose another version.") from error
+        return folder
     number = max((int(item.name) for item in base.iterdir()
                   if item.is_dir() and item.name.isascii() and item.name.isdecimal()), default=0) + 1
     while True:
@@ -38,6 +45,48 @@ def new_render_folder(base):
             return path
         except FileExistsError:
             number += 1
+
+
+def version_folder(base, version):
+    if version < 1:
+        raise ValueError("Output version must be 1 or higher.")
+    return base / f"{version:04d}"
+
+
+def render_base(node):
+    override = node["render_dir"].value().strip()
+    if override:
+        return Path(override).expanduser().resolve()
+    project = Path(nuke.root().name())
+    if project.suffix.lower() == ".nk":
+        return (project.parent / "LTXLayoutRenders").resolve()
+    return Path.home() / "Documents" / "LTXLayoutRenders"
+
+
+def is_render_run(folder):
+    return any((folder / name).is_file() for name in (
+        "ComfyRun.txt", "Render.mp4", "ContactSheet.mp4", "EXR/Render.0001.exr", "Render.0001.exr",
+    ))
+
+
+def version_up(node):
+    knob = node["output_version"]
+    try:
+        base = render_base(node)
+        selected_run = is_render_run(base)
+        current = int(knob.value())
+        if selected_run:
+            if base.name.isascii() and base.name.isdecimal():
+                current = int(base.name)
+            base = base.parent
+        version = max(1, current + 1)
+        while version_folder(base, version).exists():
+            version += 1
+        if selected_run:
+            node["render_dir"].setValue(base.as_posix())
+        knob.setValue(version)
+    except (OSError, ValueError) as error:
+        nuke.message(str(error))
 
 
 @contextmanager
@@ -104,21 +153,18 @@ def queue(node):
         parsed = urlparse(host)
         if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
             raise ValueError("Enter a valid ComfyUI URL, for example http://127.0.0.1:8188.")
-        project = Path(nuke.root().name())
-        override = node["render_dir"].value().strip()
-        if override:
-            base = Path(override).expanduser()
-        elif project.suffix.lower() == ".nk":
-            base = project.parent / "LTXLayoutRenders"
-        else:
-            base = Path.home() / "Documents" / "LTXLayoutRenders"
+        base = render_base(node)
+        version_knob = node.knob("output_version")
+        version = int(version_knob.value()) if version_knob is not None else None
+        if version is not None and is_render_run(base):
+            raise ValueError("Choose the parent Render folder before queueing a version.")
         job_name = time.strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:8]
         settings = (int(node["render_width"].value()), int(node["render_height"].value()),
                     int(node["seed_text"].value()), node["positive"].value(),
                     node["negative"].value(),
                     {key: node[key].value().strip() for key in MODEL_INPUTS}, job_name)
         build_prompt("Clay.mp4", "LookStill.png", *settings)
-        folder = new_render_folder(base.resolve())
+        folder = new_render_folder(base, version)
         (folder / "ComfyRun.txt").write_text(job_name, encoding="utf-8")
         staging = tempfile.TemporaryDirectory(prefix="input_", dir=folder)
         inputs = Path(staging.name)
@@ -607,7 +653,15 @@ def bring_file(node, filename, knob_name, x_offset, start_at=None):
     folder = Path(saved) if saved else None
     selected = node["render_dir"].value().strip()
     candidates = []
-    if selected:
+    version_knob = node.knob("output_version")
+    if version_knob is not None:
+        try:
+            base = render_base(node)
+            folder = base if selected and is_render_run(base) else version_folder(base, int(version_knob.value()))
+        except (OSError, ValueError) as error:
+            nuke.message(str(error))
+            return
+    elif selected:
         base = Path(selected).expanduser().resolve()
         if folder is None or (folder.resolve() != base and folder.resolve().parent != base):
             folder = None
