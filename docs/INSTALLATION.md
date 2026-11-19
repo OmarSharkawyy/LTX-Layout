@@ -18,12 +18,12 @@
 
 ## 2. Install the Nuke plugin
 
-1. Close Nuke. Extract the ZIP from the `main` branch and copy its `ltx-layout-main` folder into `%USERPROFILE%\.nuke`. Keep the `ltx_layout_studio` Python folder beside `LTXLayoutStudio.gizmo` and `menu.py`.
+1. Close Nuke. Extract the ZIP from the `main` branch and copy its `LTX-Layout-main` folder into `%USERPROFILE%\.nuke`. Keep the `ltx_layout_studio` Python folder beside `LTXLayoutStudio.gizmo` and `menu.py`.
 2. Open `%USERPROFILE%\.nuke\init.py`, or create it if it is missing. Add the block below near the top, keeping the existing startup code. Replace any earlier LTX Layout path entry. The plugin's own `menu.py` registers the command in the ComfyUI menu.
 
    ```python
    import nuke
-   nuke.pluginAddPath("./ltx-layout-main")
+   nuke.pluginAddPath("./LTX-Layout-main")
    ```
 
 3. Launch Nuke and create **ComfyUI → LTX Layout Studio** from the Nodes toolbar. If the ComfyUI menu does not exist yet, the plugin adds it with the ComfyUI icon. To update an earlier install, follow [Update from an older version](#update-from-an-older-version).
@@ -49,17 +49,17 @@ Python loads the first `ltx_layout_studio` it finds, so an older copy left insid
 2. In `%USERPROFILE%\.nuke`, look for an older copy of the tool:
    - an `LTX_Layout_Studio` folder from the `v0.1.0-rc.1` release ZIP,
    - an `ltx_layout_studio` folder placed directly in `.nuke`,
-   - or an earlier `ltx-layout-main` folder.
+   - or an earlier `LTX-Layout-main` folder.
 
    Move it out of `.nuke`, for example to `Documents`, and keep it as a backup until the new version works. Do not leave it anywhere inside `.nuke`.
 3. Open `%USERPROFILE%\.nuke\init.py` and `%USERPROFILE%\.nuke\menu.py`. Remove every `nuke.pluginAddPath(...)` line that points at an old LTX Layout folder, such as `./LTX_Layout_Studio`. Keep a single entry in `init.py`:
 
    ```python
    import nuke
-   nuke.pluginAddPath("./ltx-layout-main")
+   nuke.pluginAddPath("./LTX-Layout-main")
    ```
 
-4. Copy the new `ltx-layout-main` folder into `%USERPROFILE%\.nuke`, as in [Install the Nuke plugin](#2-install-the-nuke-plugin).
+4. Copy the new `LTX-Layout-main` folder into `%USERPROFILE%\.nuke`, as in [Install the Nuke plugin](#2-install-the-nuke-plugin).
 5. Start Nuke and create a fresh **LTX Layout Studio** node. Nodes saved in older scripts keep their older controls.
 6. To confirm which copy is running, open the Script Editor in Python mode and run:
 
@@ -68,4 +68,4 @@ Python loads the first `ltx_layout_studio` it finds, so an older copy left insid
    print(bridge.__file__)
    ```
 
-   The path must end in `ltx-layout-main\ltx_layout_studioridge.py`. If it shows another folder, that older copy is still inside `.nuke`.
+   The path must end in `LTX-Layout-main\ltx_layout_studio\bridge.py`. If it shows another folder, that older copy is still inside `.nuke`.

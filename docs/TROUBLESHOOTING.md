@@ -2,7 +2,7 @@
 
 | Symptom | What to check |
 |---|---|
-| LTX Layout is missing from Nuke | Confirm that `LTXLayoutStudio.gizmo` and `menu.py` are directly inside `.nuke/ltx-layout-main`. Add the `init.py` block below, then restart Nuke. |
+| LTX Layout is missing from Nuke | Confirm that `LTXLayoutStudio.gizmo` and `menu.py` are directly inside `.nuke/LTX-Layout-main`. Add the `init.py` block below, then restart Nuke. |
 | The panel looks like an older version | Create a fresh node after upgrading the plugin files. |
 | An older version keeps loading after an update | An older copy is still inside `.nuke`. Follow [Update from an older version](INSTALLATION.md#update-from-an-older-version), then check the path that `bridge.__file__` prints. |
 | Check Setup cannot reach ComfyUI | Open the address in a browser and confirm the hostname, port, and ComfyUI instance. |
@@ -24,7 +24,7 @@ In `%USERPROFILE%\.nuke\init.py`, place `import nuke` before the plugin path:
 
 ```python
 import nuke
-nuke.pluginAddPath("./ltx-layout-main")
+nuke.pluginAddPath("./LTX-Layout-main")
 ```
 
 After restarting Nuke, run this in the Script Editor in Python mode:
