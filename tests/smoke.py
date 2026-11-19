@@ -84,6 +84,7 @@ def main():
                                       run / "Render.mp4", unlabelled, 128, 128, 24, 9)
             assert unlabelled.stat().st_size > 0
         detection_test(bridge, root)
+        ffmpeg_check_test(bridge, ffmpeg, root)
         robustness_test(bridge, nuke, settings, ffmpeg, run, fixture_video, fixture_exr, root)
     print("Portable integration passed: new paths, setup, upload, queue, EXRs, review MP4, both Reads, "
           "and recovery from network, FFmpeg, resume, seed and path problems.")
@@ -119,7 +120,8 @@ def detection_test(bridge, root):
                    registry=patch.object(bridge, "registry_path_dirs", return_value=[]),
                    known=patch.object(bridge, "known_ffmpeg_dirs", return_value=[]),
                    scan=patch.object(bridge, "scan_comfy_installs", return_value=[]))
-    with nowhere["shutil"], nowhere["registry"], nowhere["known"], nowhere["scan"], \
+    runs = patch.object(bridge, "is_ffmpeg", side_effect=lambda path: Path(path).resolve() == bundled.resolve())
+    with nowhere["shutil"], nowhere["registry"], nowhere["known"], nowhere["scan"], runs, \
             patch.dict(sys.modules, {"imageio_ffmpeg": None}), \
             patch.dict(bridge.os.environ, {"LTX_LAYOUT_FFMPEG": ""}):
         bridge._FOUND.clear()
@@ -132,11 +134,74 @@ def detection_test(bridge, root):
             assert "not found" in str(error)
         else:
             raise AssertionError("A machine with no FFmpeg must report it.")
-    with nowhere["shutil"], nowhere["registry"], nowhere["known"], \
+    runs = patch.object(bridge, "is_ffmpeg", side_effect=lambda path: Path(path).resolve() == bundled.resolve())
+    with nowhere["shutil"], nowhere["registry"], nowhere["known"], runs, \
             patch.object(bridge, "scan_comfy_installs", return_value=[comfy.resolve()]):
         bridge._FOUND.clear()
         assert Path(bridge.find_ffmpeg("")) == bundled.resolve()
     bridge._FOUND.clear()
+
+
+def ffmpeg_check_test(bridge, ffmpeg, root):
+    """A saved path that exists but does not run as FFmpeg must not stop the search."""
+    broken = root / "broken" / "ffmpeg.exe"
+    broken.parent.mkdir()
+    broken.write_bytes(b"MZ this is not a program")  # like a build for another system (WinError 193)
+    text = root / "notes" / "ffmpeg.exe"
+    text.parent.mkdir()
+    text.write_text("not ffmpeg", encoding="utf-8")
+    assert bridge.is_ffmpeg(ffmpeg)
+    for bad in (broken, text, root / "missing.exe", root):
+        assert not bridge.is_ffmpeg(bad), bad
+
+    bridge._FOUND.clear()
+    with patch.object(bridge.shutil, "which", return_value=ffmpeg), \
+            patch.dict(bridge.os.environ, {"LTX_LAYOUT_FFMPEG": ""}):
+        assert Path(bridge.find_ffmpeg(str(broken))) == Path(ffmpeg).resolve()
+
+        class Knob:
+            def __init__(self, value):
+                self.saved = value
+
+            def value(self):
+                return self.saved
+
+            def setValue(self, value):
+                self.saved = value
+
+        class Node:
+            def __init__(self, value):
+                self.knobs = {"ffmpeg_path": Knob(value)}
+
+            def knob(self, name):
+                return self.knobs.get(name)
+
+        node = Node(str(broken))
+        assert Path(bridge.node_ffmpeg(node)) == Path(ffmpeg).resolve()
+        assert node.knob("ffmpeg_path").value() == "", "A broken saved path must be cleared."
+        node = Node(str(ffmpeg))
+        assert Path(bridge.node_ffmpeg(node)) == Path(ffmpeg).resolve()
+        assert node.knob("ffmpeg_path").value() == str(ffmpeg), "A working saved path must be kept."
+
+    bridge._FOUND.clear()
+    nowhere = (patch.object(bridge.shutil, "which", return_value=None),
+               patch.object(bridge, "registry_path_dirs", return_value=[]),
+               patch.object(bridge, "known_ffmpeg_dirs", return_value=[]),
+               patch.object(bridge, "scan_comfy_installs", return_value=[]),
+               patch.dict(sys.modules, {"imageio_ffmpeg": None}),
+               patch.dict(bridge.os.environ, {"LTX_LAYOUT_FFMPEG": ""}))
+    for item in nowhere:
+        item.start()
+    try:
+        bridge.find_ffmpeg(str(broken))
+    except ValueError as error:
+        assert "not a working FFmpeg" in str(error) and str(broken) in str(error), error
+    else:
+        raise AssertionError("A broken saved FFmpeg with no other build must be reported.")
+    finally:
+        for item in reversed(nowhere):
+            item.stop()
+        bridge._FOUND.clear()
 
 
 def server_test(bridge, nuke, settings, catalog, run, staging, ffmpeg, sequence,

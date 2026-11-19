@@ -441,31 +441,70 @@ def ffmpeg_candidates(comfy_root=None, host=None):
         pass
 
 
+_CHECKED = {}
+
+
+def is_ffmpeg(path):
+    """True when the file runs and reports itself as FFmpeg.
+
+    A file that merely exists can be a stale path, a different program, or a build for another
+    system (WinError 193), so each file is run once with -version. The answer is kept until the
+    file changes.
+    """
+    try:
+        path = Path(path).expanduser().resolve()
+        if not path.is_file():
+            return False
+        stat = path.stat()
+    except OSError:
+        return False
+    key = (str(path), stat.st_size, stat.st_mtime_ns)
+    if key not in _CHECKED:
+        try:
+            result = subprocess.run([str(path), "-version"], capture_output=True, text=True, errors="replace",
+                                    check=False, timeout=FFMPEG_QUICK_SECONDS,
+                                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            _CHECKED[key] = result.stdout.lstrip().lower().startswith("ffmpeg version")
+        except (OSError, subprocess.SubprocessError):
+            _CHECKED[key] = False
+    return _CHECKED[key]
+
+
 def find_ffmpeg(override="", comfy_root=None, host=None):
-    """Return an FFmpeg executable: a saved choice when valid, otherwise search this machine."""
+    """Return a working FFmpeg: a saved choice when it runs, otherwise search this machine."""
+    rejected = []
     for value in (override, os.environ.get("LTX_LAYOUT_FFMPEG", "")):
         value = value.strip().strip('"')
-        if value and Path(value).expanduser().is_file():
+        if not value:
+            continue
+        if is_ffmpeg(value):
             return str(Path(value).expanduser().resolve())
+        rejected.append(value)
     cached = _FOUND.get("ffmpeg")
-    if cached is not None and cached.is_file():
+    if cached is not None and is_ffmpeg(cached):
         return str(cached)
     for candidate in ffmpeg_candidates(comfy_root, host):
         try:
-            if candidate.is_file():
+            if candidate.is_file() and is_ffmpeg(candidate):
                 _FOUND["ffmpeg"] = candidate.resolve()
                 return str(_FOUND["ffmpeg"])
         except OSError:
             continue
+    skipped = "".join(f"\nSkipped because it is not a working FFmpeg: {value}" for value in rejected)
     raise ValueError("FFmpeg was not found on this computer. Install FFmpeg "
-                     "(for example: winget install Gyan.FFmpeg) or start ComfyUI on this computer, then try again.")
+                     "(for example: winget install Gyan.FFmpeg) or start ComfyUI on this computer, "
+                     "then try again." + skipped)
 
 
 def node_ffmpeg(node, comfy_root=None, host=None):
     """Find FFmpeg for a gizmo, asking for the executable only if the search fails."""
     knob = node.knob("ffmpeg_path")
+    saved = knob.value().strip().strip('"') if knob is not None else ""
+    if saved and not is_ffmpeg(saved):
+        knob.setValue("")  # A broken saved path must not keep winning over a working FFmpeg.
+        saved = ""
     try:
-        return find_ffmpeg(knob.value() if knob is not None else "", comfy_root, host)
+        return find_ffmpeg(saved, comfy_root, host)
     except ValueError as error:
         ask = getattr(nuke, "ask", None)
         if knob is None or ask is None or not ask(f"{error}\n\nSelect the FFmpeg executable yourself?"):
@@ -473,6 +512,9 @@ def node_ffmpeg(node, comfy_root=None, host=None):
         selected = nuke.getFilename("Select the FFmpeg executable", "*")
         if not selected or not Path(selected).is_file():
             raise
+        if not is_ffmpeg(selected):
+            raise ValueError(f"{selected} did not run as FFmpeg. Choose ffmpeg.exe from a full "
+                             "Windows build, for example one installed with winget install Gyan.FFmpeg.") from error
         knob.setValue(str(Path(selected).resolve()))
         return knob.value()
 
@@ -493,10 +535,10 @@ def set_setup_path(node, kind):
     try:
         if is_comfy:
             node["comfy_root"].setValue(str(portable_root(selected)))
-        elif Path(selected).is_file():
+        elif is_ffmpeg(selected):
             node["ffmpeg_path"].setValue(str(Path(selected).resolve()))
         else:
-            raise ValueError("Select an existing FFmpeg executable.")
+            raise ValueError("Select an FFmpeg executable that runs on this computer.")
     except (OSError, ValueError) as error:
         nuke.message(str(error))
 
