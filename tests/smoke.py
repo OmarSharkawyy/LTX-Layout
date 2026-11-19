@@ -85,6 +85,7 @@ def main():
             assert unlabelled.stat().st_size > 0
         detection_test(bridge, root)
         ffmpeg_check_test(bridge, ffmpeg, root)
+        size_test(bridge)
         robustness_test(bridge, nuke, settings, ffmpeg, run, fixture_video, fixture_exr, root)
     print("Portable integration passed: new paths, setup, upload, queue, EXRs, review MP4, both Reads, "
           "and recovery from network, FFmpeg, resume, seed and path problems.")
@@ -140,6 +141,43 @@ def detection_test(bridge, root):
         bridge._FOUND.clear()
         assert Path(bridge.find_ffmpeg("")) == bundled.resolve()
     bridge._FOUND.clear()
+
+
+def size_test(bridge):
+    """Width and Height only take sizes LTX accepts: multiples of 64, at least 128."""
+    for typed, expected in ((1900, 1920), (1856, 1856), (1080, 1088), (1110, 1088), (1120, 1152),
+                            (100, 128), (0, 128), (-64, 128), (130, 128), (2000.0, 1984)):
+        assert bridge.snap_size(typed) == expected, (typed, bridge.snap_size(typed))
+
+    class Knob:
+        def __init__(self, value):
+            self.saved, self.sets = value, 0
+
+        def value(self):
+            return self.saved
+
+        def setValue(self, value):
+            self.saved, self.sets = value, self.sets + 1
+
+    node = {"render_width": Knob(1856), "render_height": Knob(1088)}
+    bridge.step_size(node, "render_width", 1)
+    bridge.step_size(node, "render_height", -1)
+    assert (node["render_width"].value(), node["render_height"].value()) == (1920, 1024)
+    small = {"render_width": Knob(128)}
+    bridge.step_size(small, "render_width", -1)
+    assert small["render_width"].value() == 128, "The down arrow must stop at 128."
+    odd = {"render_width": Knob(1900)}
+    bridge.step_size(odd, "render_width", 1)
+    assert odd["render_width"].value() == 1984, "An odd size snaps first, then steps."
+    typed = Knob(1900)
+    bridge.snap_knob(None, typed)
+    assert typed.value() == 1920
+    exact = Knob(1920)
+    bridge.snap_knob(None, exact)
+    assert exact.sets == 0, "A valid size must not be set again."
+    for width, height in ((1920, 1088), (128, 128)):
+        bridge.build_prompt("Clay.mp4", "LookStill.png", width, height, 1, "", "",
+                            {key: "x" for key in bridge.MODEL_INPUTS}, "size")
 
 
 def ffmpeg_check_test(bridge, ffmpeg, root):

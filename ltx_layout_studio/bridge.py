@@ -117,8 +117,30 @@ def create():
     return node
 
 
+SIZE_STEP = 64   # LTX needs each output side to be a multiple of 64 pixels
+SIZE_MIN = 128
+
+
+def snap_size(value):
+    """The nearest size LTX accepts: a multiple of 64, at least 128."""
+    return max(SIZE_MIN, int(float(value) / SIZE_STEP + 0.5) * SIZE_STEP)
+
+
+def snap_knob(node, knob):
+    """Round a typed Width or Height to the nearest size LTX accepts."""
+    snapped = snap_size(knob.value())
+    if snapped != knob.value():
+        knob.setValue(snapped)
+
+
+def step_size(node, name, steps):
+    """Raise or lower Width or Height by whole 64-pixel steps, never below 128."""
+    knob = node[name]
+    knob.setValue(max(SIZE_MIN, snap_size(knob.value()) + steps * SIZE_STEP))
+
+
 def build_prompt(clay, look, width, height, seed, positive, negative, models, job_name):
-    if min(width, height) < 128 or width % 64 or height % 64:
+    if min(width, height) < SIZE_MIN or width % SIZE_STEP or height % SIZE_STEP:
         raise ValueError("Output width and height must be at least 128 and divisible by 64.")
     if not 0 <= seed < 2**64:
         raise ValueError("Seed must be between 0 and 2^64 - 1.")

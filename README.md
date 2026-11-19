@@ -45,7 +45,7 @@ For exact model filenames, dependency setup, and a short verification render, se
 ## Use
 
 1. Connect **Clay** and **Look Still**. Click **Use Clay Range** or enter **First** and **Last**. The gizmo samples the Look Still at the first Clay frame by default. Turn off **Match Look Still frame to Clay First** to choose a different frame.
-2. Set the prompt, output size, and **Render folder**. The default output is **768×448**. Use multiples of 64 for width and height. LTX may trim the input range to a supported `8n+1` frame count.
+2. Set the prompt, output size, and **Render folder**. The default output is **768×448**. LTX needs width and height in multiples of 64: use the **▲ ▼** arrows to step by 64, and a typed size snaps to the nearest one it accepts. LTX may trim the input range to a supported `8n+1` frame count.
 3. Click **Queue Render**. Watch **Status** for progress. Use **Version Up Output** before rendering a new version. Select an existing **Version** to import its outputs. Use **Cancel Request** to stop this gizmo’s active job.
 4. Click **Bring Render** for the EXR sequence or **Bring Contact Sheet** for the comparison MP4. Each button creates a separate Read, starting at **Place render at**.
 

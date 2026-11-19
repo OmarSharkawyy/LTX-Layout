@@ -15,18 +15,22 @@ Gizmo {
  match_clay_first true
  addUserKnob {3 look_frame l "Look frame" -STARTLINE t "Frame to sample from the Look Still input when frame matching is off."}
  look_frame 1
- knobChanged "if nuke.thisKnob().name() in ('match_clay_first', 'showPanel'):\n    nuke.thisNode()['look_frame'].setEnabled(not nuke.thisNode()['match_clay_first'].value())"
+ knobChanged "if nuke.thisKnob().name() in ('match_clay_first', 'showPanel'):\n    nuke.thisNode()['look_frame'].setEnabled(not nuke.thisNode()['match_clay_first'].value())\nif nuke.thisKnob().name() in ('render_width', 'render_height'):\n    from ltx_layout_studio import bridge\n    bridge.snap_knob(nuke.thisNode(), nuke.thisKnob())"
  addUserKnob {26 prompt_title l "" +STARTLINE T "<b>Prompts</b>"}
  addUserKnob {43 positive +INVISIBLE}
  positive "Photorealistic spectators in winter jackets in an indoor ice-skating arena, cool soft overhead lighting."
  addUserKnob {43 negative +INVISIBLE}
  addUserKnob {52 prompt_editor l "" +STARTLINE T "__import__('ltx_layout_studio.prompt_ui', fromlist=('PromptEditor',)).PromptEditor()"}
  addUserKnob {26 output_title l "" +STARTLINE T "<b>Output</b>"}
- addUserKnob {3 render_width l Width +STARTLINE t "Final image width in pixels. Use a multiple of 64."}
+ addUserKnob {3 render_width l Width +STARTLINE t "Final image width in pixels. LTX needs a multiple of 64, at least 128: a typed value snaps to the nearest one. The arrows step by 64."}
  render_width 768
- addUserKnob {3 render_height l Height -STARTLINE t "Final image height in pixels. Use a multiple of 64."}
+ addUserKnob {22 render_width_down l "▼" -STARTLINE t "Lower the width by 64 pixels." T "from ltx_layout_studio import bridge; bridge.step_size(nuke.thisNode(), 'render_width', -1)"}
+ addUserKnob {22 render_width_up l "▲" -STARTLINE t "Raise the width by 64 pixels." T "from ltx_layout_studio import bridge; bridge.step_size(nuke.thisNode(), 'render_width', 1)"}
+ addUserKnob {3 render_height l Height -STARTLINE t "Final image height in pixels. LTX needs a multiple of 64, at least 128: a typed value snaps to the nearest one. The arrows step by 64."}
  render_height 448
- addUserKnob {3 start_at l "Place render at" -STARTLINE t "Timeline frame at which the imported render or contact video begins."}
+ addUserKnob {22 render_height_down l "▼" -STARTLINE t "Lower the height by 64 pixels." T "from ltx_layout_studio import bridge; bridge.step_size(nuke.thisNode(), 'render_height', -1)"}
+ addUserKnob {22 render_height_up l "▲" -STARTLINE t "Raise the height by 64 pixels." T "from ltx_layout_studio import bridge; bridge.step_size(nuke.thisNode(), 'render_height', 1)"}
+ addUserKnob {3 start_at l "Place render at" +STARTLINE t "Timeline frame at which the imported render or contact video begins."}
  start_at 1
  addUserKnob {1 seed_text l Seed +STARTLINE t "Starting noise seed for both samplers. Change it for a render variation."}
  seed_text 42
@@ -54,7 +58,7 @@ Gizmo {
  addUserKnob {26 detected_paths l "" +STARTLINE T "FFmpeg and the ComfyUI folder are found automatically. Click Check Setup to see them."}
  addUserKnob {26 settings_frames l "" +STARTLINE T "<b>Inputs and timing</b><br>Clay sets the layout and movement. Look Still sets the appearance.<br>First / Last select the Clay timeline range at the project FPS.<br>Use Clay Range copies the connected node's range. LTX may trim the end to 8n+1 frames.<br>Match Look Still uses the Clay First frame number. Turn it off to choose Look frame independently."}
  addUserKnob {26 settings_prompts l "" +STARTLINE T "<b>Prompts and seed</b><br>Positive describes the desired look and scene. Negative describes features to avoid.<br>Seed sets the noise for both passes. Use the same seed when comparing changes."}
- addUserKnob {26 settings_output l "" +STARTLINE T "<b>Output and import</b><br>Width / Height set final pixels and must be multiples of 64.<br>Place render at sets the timeline start of the imported Reads.<br>Version selects a numbered run within Render folder. Version Up Output selects the next unused version. Bring Render reads the ACEScg EXRs.<br>Bring Contact Sheet reads the 2×2 comparison MP4 from the same run."}
+ addUserKnob {26 settings_output l "" +STARTLINE T "<b>Output and import</b><br>Width / Height set final pixels in multiples of 64. The arrows step by 64, and a typed size snaps to the nearest one.<br>Place render at sets the timeline start of the imported Reads.<br>Version selects a numbered run within Render folder. Version Up Output selects the next unused version. Bring Render reads the ACEScg EXRs.<br>Bring Contact Sheet reads the 2×2 comparison MP4 from the same run."}
  addUserKnob {26 settings_jobs l "" +STARTLINE T "<b>Jobs and models</b><br>Queue Render exports both inputs and submits them to ComfyUI.<br>Cancel Request targets this gizmo's active job. Status shows progress or errors.<br>Transformer runs LTX. Text encoder reads prompts. Video VAE decodes frames.<br>Layout LoRA follows the guides. Latent upscaler doubles the first-pass resolution."}
  addUserKnob {20 models_tab l Models}
  addUserKnob {1 transformer l Transformer t "Distilled LTX-2.5 diffusion model filename on the ComfyUI server."}

@@ -11,7 +11,7 @@
 | Match Look Still frame to Clay First | Samples the same timeline frame number on the Look Still input. Turn it off to enable **Look frame**. |
 | Look frame | Independent frame on the Look Still input. |
 | Positive / Negative | Text describing the intended appearance and features to avoid. |
-| Width / Height | Final canvas dimensions. Use multiples of 64, with a minimum of 128 per dimension. |
+| Width / Height | Final canvas dimensions. LTX needs multiples of 64, with a minimum of 128 per dimension. The **▲ ▼** arrows beside each field step by 64, and a typed value snaps to the nearest accepted size, for example 1900 becomes 1920. |
 | Place render at | Starting timeline frame for the imported EXR and contact video. |
 | Seed | Noise seed for both sampling stages. |
 | Render folder | Parent folder for numbered runs. Choose an existing run directly to use the Bring buttons. |
