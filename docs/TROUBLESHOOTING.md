@@ -8,7 +8,7 @@
 | Check Setup cannot reach ComfyUI | Open the address in a browser and confirm the hostname, port, and ComfyUI instance. |
 | Missing node types or models | Read the names reported by Check Setup. Confirm ComfyUI-LTXVideo and ComfyUI-OCIO loaded in that instance, and use the exact filenames in the Models tab. |
 | FFmpeg is missing or lacks an encoder/filter | Install a full build (`winget install Gyan.FFmpeg`) and run Check Setup again; it is found automatically. To force a specific build, set the `LTX_LAYOUT_FFMPEG` environment variable to its path. |
-| `WinError 193` or another error when FFmpeg starts | The file found is not a FFmpeg that runs on this computer. The gizmo now runs each FFmpeg once with `-version` and skips one that fails, including a broken path saved in an older node, which it clears. Run Check Setup again to use the next working build. |
+| `WinError 193` or another error when FFmpeg starts | The file found does not run as FFmpeg on this computer. The gizmo runs each FFmpeg once with `-version`, skips one that fails, and clears a broken path saved in an older node. Run Check Setup again to use the next working build. |
 | Status shows "Reconnecting to ComfyUI" | The connection dropped briefly. The gizmo retries a few times while ComfyUI keeps rendering. If it gives up, the render may still be running: check ComfyUI. |
 | FFmpeg "did not finish" | FFmpeg was stopped after a time limit so the gizmo is free again. Try again, or point `LTX_LAYOUT_FFMPEG` at a different FFmpeg build. |
 | ComfyUI runs in WSL or Docker | When its filesystem differs from Nuke's, the gizmo detects this and downloads the EXR frames from ComfyUI instead of asking it to write into your render folder. |
