@@ -65,6 +65,8 @@ Select a specific numbered folder to bring an older render back into Nuke withou
 
 ## Documentation
 
+- [Installation guide](docs/INSTALLATION.md)
+- [Controls and output](docs/CONTROLS.md)
 - [Nuke compatibility and smoke test](docs/COMPATIBILITY.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 

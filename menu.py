@@ -1,11 +1,17 @@
-import nuke
-from ltx_layout_studio.bridge import create
+import os
 
+import nuke
+
+# The menu entry loads the tool only when it is clicked, so a problem inside the tool shows
+# a clear error at that moment instead of hiding the menu when Nuke starts.
+COMMAND = "from ltx_layout_studio import bridge; bridge.create()"
 
 menu = nuke.menu("Nodes")
 comfy = menu.findItem("ComfyUI")
 if comfy is None:
-    comfy = menu.addMenu("ComfyUI")
+    # The Nodes toolbar shows only icons, so a ComfyUI menu without one would be an invisible button.
+    icon = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ltx_layout_studio", "comfyui_menu.png")
+    comfy = menu.addMenu("ComfyUI", icon=icon.replace(os.sep, "/"))
 
 label = "LTX Layout Studio"
 if comfy.findItem(label) is None:
@@ -17,4 +23,4 @@ if comfy.findItem(label) is None:
                 index = position
                 break
             index = position + 1
-    comfy.addCommand(label, create, index=index)
+    comfy.addCommand(label, COMMAND, index=index)

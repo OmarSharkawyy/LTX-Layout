@@ -14,7 +14,7 @@
 | Width / Height | Final canvas dimensions. Use multiples of 64, with a minimum of 128 per dimension. |
 | Place render at | Starting timeline frame for the imported EXR and contact video. |
 | Seed | Noise seed for both sampling stages. |
-| Render folder | Parent folder for numbered runs. Choose an existing run directly to use the Bring buttons.
+| Render folder | Parent folder for numbered runs. Choose an existing run directly to use the Bring buttons. |
 | Version | Selects the numbered output folder. Version 1 uses 0001. |
 | Version Up Output | Selects the next unused version. Click Queue Render to render it. |
 | Queue Render | Exports the Nuke inputs, encodes the guide, and submits the job. |

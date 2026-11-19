@@ -12,8 +12,8 @@ Omar El Sharkawy
    Install the LTX-2.5 files listed in the official guide and enter the exact
    filenames in the Models tab. Start ComfyUI. Install FFmpeg with libx264
    (for example: winget install Gyan.FFmpeg), or rely on the FFmpeg that
-   ComfyUI Portable bundles through imageio_ffmpeg. The package includes neither model weights
-   nor FFmpeg binaries.
+   ComfyUI Portable bundles through imageio_ffmpeg. The package includes
+   neither model weights nor FFmpeg binaries.
 
 2. INSTALL OR UPDATE THE NUKE TOOL
 
