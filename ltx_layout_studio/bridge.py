@@ -3,11 +3,13 @@ from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
 import threading
 import time
+import types
 from urllib.parse import urlparse
 import uuid
 
@@ -25,6 +27,13 @@ MODEL_INPUTS = {
 }
 ACTIVE = {}
 CONTACT_FILTERS = {"crop", "fps", "hstack", "pad", "scale", "setsar", "split", "tpad", "xstack"}
+WATCH_POLL_SECONDS = 3     # pause between ComfyUI status checks
+WATCH_RETRIES = 5          # transient network errors tolerated in a row per request
+WATCH_RETRY_SECONDS = 3    # first pause before retrying; grows by this much each time
+STOPPED = object()         # returned by watch_request when Cancel arrives while retrying
+FFMPEG_QUICK_SECONDS = 12  # listing encoders/filters or probing a clip
+FFMPEG_BASE_SECONDS = 180  # fixed allowance for an encode, plus the per-frame one below
+FFMPEG_SECONDS_PER_FRAME = 5
 
 
 def new_render_folder(base, version=None):
@@ -130,6 +139,16 @@ def build_prompt(clay, look, width, height, seed, positive, negative, models, jo
     return prompt
 
 
+def parse_seed(text):
+    text = str(text).strip()
+    if not text:
+        raise ValueError("Enter a Seed: a whole number such as 42.")
+    try:
+        return int(text)
+    except ValueError:
+        raise ValueError(f"Seed must be a whole number such as 42, not '{text[:40]}'.") from None
+
+
 def queue(node):
     if node.fullName() in ACTIVE:
         nuke.message("This gizmo is already watching a render.")
@@ -148,6 +167,7 @@ def queue(node):
         last = first + (last - first) // 8 * 8
         if last == first:
             raise ValueError("Select at least 9 clay frames for video generation.")
+        seed = parse_seed(node["seed_text"].value())
         fps = float(nuke.root()["fps"].value())
         host = valid_host(node["server"].value())
         comfy_root = node_portable_root(node, host)
@@ -160,7 +180,7 @@ def queue(node):
             raise ValueError("Choose the parent Render folder before queueing a version.")
         job_name = time.strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:8]
         settings = (int(node["render_width"].value()), int(node["render_height"].value()),
-                    int(node["seed_text"].value()), node["positive"].value(),
+                    seed, node["positive"].value(),
                     node["negative"].value(),
                     {key: node[key].value().strip() for key in MODEL_INPUTS}, job_name)
         build_prompt("Clay.mp4", "LookStill.png", *settings)
@@ -481,13 +501,36 @@ def set_setup_path(node, kind):
         nuke.message(str(error))
 
 
+def ffmpeg_timeout(frames):
+    return FFMPEG_BASE_SECONDS + FFMPEG_SECONDS_PER_FRAME * max(int(frames), 1)
+
+
+def run_ffmpeg(args, timeout, task):
+    """Run FFmpeg with a deadline so a hung process cannot keep the gizmo busy forever."""
+    try:
+        return subprocess.run(args, capture_output=True, text=True, errors="replace", check=False,
+                              timeout=timeout, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"FFmpeg did not finish within {timeout:g} seconds while trying to {task}, "
+                           "so it was stopped. Try again, or select a different FFmpeg.") from None
+    except OSError as error:
+        raise RuntimeError(f"Could not run FFmpeg to {task}: {error}") from error
+
+
 def ffmpeg_names(ffmpeg, listing):
-    output = subprocess.check_output(
-        [ffmpeg, "-hide_banner", listing], stderr=subprocess.STDOUT, text=True,
-        timeout=12, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-    )
-    return {columns[1] for line in output.splitlines()
+    result = run_ffmpeg([ffmpeg, "-hide_banner", listing], FFMPEG_QUICK_SECONDS,
+                        f"list its {listing.lstrip('-')}")
+    if result.returncode:
+        raise RuntimeError(f"FFmpeg {listing} failed. " + result.stderr.strip())
+    return {columns[1] for line in (result.stdout + result.stderr).splitlines()
             if len(columns := line.split()) >= 3}
+
+
+def clip_fps(ffmpeg, clip):
+    """Frame rate of a clip as reported by FFmpeg, or None."""
+    info = run_ffmpeg([ffmpeg, "-hide_banner", "-i", str(clip)], FFMPEG_QUICK_SECONDS, "read the clay video")
+    match = re.search(r"([\d.]+) fps", info.stderr)
+    return float(match.group(1)) if match else None
 
 
 def contact_filters(ffmpeg):
@@ -543,7 +586,7 @@ def verify_setup(host, ffmpeg, models):
         model_errors.append("Could not verify model choices on the server:\n" + "\n".join(unknown_models))
     if model_errors:
         raise RuntimeError("\n\n".join(model_errors))
-    add_exr_output(host, prompt, Path("setup_check"), catalog)
+    add_exr_output(host, prompt, Path("setup_check"), catalog, local=False)
     incompatible = set()
     for step in prompt.values():
         node_type = step["class_type"]
@@ -609,8 +652,7 @@ def encode_clay(ffmpeg, sequence, first, last, fps, destination):
         "-frames:v", str(last - first + 1), "-an", "-c:v", "libx264", "-crf", "16",
         "-pix_fmt", "yuv420p", str(destination),
     ]
-    result = subprocess.run(args, capture_output=True, text=True, check=False,
-                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    result = run_ffmpeg(args, ffmpeg_timeout(last - first + 1), "encode the clay video")
     if result.returncode:
         raise RuntimeError("Could not encode the clay video. " + result.stderr.strip())
 
@@ -653,8 +695,11 @@ def make_contact_video(ffmpeg, clay, look, video, destination, width, height, fp
         "-frames:v", str(frame_count), "-an", "-c:v", "libx264", "-crf", "17", "-pix_fmt", "yuv420p",
         "-movflags", "+faststart", str(partial),
     ]
-    result = subprocess.run(args, capture_output=True, text=True, check=False,
-                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    try:
+        result = run_ffmpeg(args, ffmpeg_timeout(frame_count), "build the contact sheet")
+    except RuntimeError as error:
+        partial.unlink(missing_ok=True)
+        raise RuntimeError(f"Render saved, but the contact sheet failed. {error}") from error
     if result.returncode:
         partial.unlink(missing_ok=True)
         raise RuntimeError("Render saved, but the contact sheet failed. " + result.stderr.strip())
@@ -676,7 +721,45 @@ def is_local_server(host):
     return urlparse(host).hostname in ("127.0.0.1", "localhost", "::1")
 
 
-def add_exr_output(host, prompt, folder, catalog=None):
+def server_shares_files(host):
+    """False when a local-looking ComfyUI server clearly has its own filesystem.
+
+    ComfyUI in WSL or Docker answers on 127.0.0.1, but a Windows path from Nuke
+    means nothing there, so it cannot write EXRs straight into the render folder.
+    """
+    if not is_local_server(host):
+        return False
+    try:
+        server_os = ((client.json_request(host, "/system_stats", timeout=3) or {}).get("system") or {}).get("os")
+        if isinstance(server_os, str) and server_os != os.name:
+            return False
+    except Exception:  # Unknown is treated as shared, as before.
+        pass
+    try:
+        paths = client.json_request(host, "/internal/folder_paths", timeout=3) or {}
+        folders = [Path(item) for values in paths.values() if isinstance(values, list)
+                   for item in values if isinstance(item, str)]
+        if folders and not any(folder.is_dir() for folder in folders):
+            return False
+    except Exception:
+        pass
+    return True
+
+
+def exr_relative(prompt):
+    """The EXR folder inside the server's output folder, used when frames are downloaded."""
+    return prompt["4852"]["inputs"]["filename_prefix"].rsplit("/", 1)[0] + "/EXR"
+
+
+def exr_in_folder(prompt, folder):
+    """True when OCIOWrite was told to write straight into this computer's render folder."""
+    try:
+        return prompt["9100"]["inputs"]["output_folder"] == (folder / "EXR").as_posix()
+    except (KeyError, TypeError):
+        return False
+
+
+def add_exr_output(host, prompt, folder, catalog=None, local=None):
     info = catalog if catalog is not None else client.json_request(host, "/object_info/OCIOWrite")
     required = (info or {}).get("OCIOWrite", {}).get("input", {}).get("required", {})
     if "input_colorspace" not in required or "output_colorspace" not in required:
@@ -687,8 +770,10 @@ def add_exr_output(host, prompt, folder, catalog=None):
     target = next((cs for cs in ("ACEScg", "ACES - ACEScg") if cs in outputs), None)
     if not source or not target:
         raise RuntimeError("ComfyUI-OCIO needs an sRGB input and an ACEScg output colorspace.")
-    relative = prompt["4852"]["inputs"]["filename_prefix"].rsplit("/", 1)[0] + "/EXR"
-    output = (folder / "EXR").as_posix() if is_local_server(host) else relative
+    relative = exr_relative(prompt)
+    if local is None:
+        local = server_shares_files(host)
+    output = (folder / "EXR").as_posix() if local else relative
     prompt["9100"] = {"class_type": "OCIOWrite", "inputs": {
         "images": ["5518:5538", 0], "profile": "none",
         "input_colorspace": source, "output_colorspace": target,
@@ -703,10 +788,14 @@ def add_exr_output(host, prompt, folder, catalog=None):
     return relative
 
 
-def fetch_exr(host, folder, entry, relative, stop):
+def fetch_exr(host, folder, entry, relative, stop, local=None):
     count = int(entry["outputs"]["9100"]["count"][0])
     target = folder / "EXR"
-    if not is_local_server(host):
+    if local is None:
+        local = is_local_server(host)
+    if not local:
+        if relative is None:
+            raise RuntimeError("Could not tell where ComfyUI saved the EXR frames.")
         target.mkdir(parents=True, exist_ok=True)
         for frame in range(1, count + 1):
             if stop.is_set():
@@ -746,12 +835,12 @@ def start_worker(node, host, folder, job_id, submission, export=None):
     token = uuid.uuid4().hex
     stop = threading.Event()
     ACTIVE[key] = (token, stop)
-    node["job_status"].setValue("Connecting to ComfyUI")
-    context = (key, token, nuke.root().name())
     try:
+        node["job_status"].setValue("Connecting to ComfyUI")
+        context = (key, token, nuke.root().name())
         threading.Thread(target=render, args=(context, host, folder, job_id, submission, export, stop),
                          daemon=True, name="LTXLayoutStudio").start()
-    except RuntimeError:
+    except Exception:
         ACTIVE.pop(key, None)
         raise
 
@@ -760,13 +849,96 @@ def publish(context, status, job=None, result=None, terminal=False):
     nuke.executeInMainThread(apply_update, args=(context, status, job, result, terminal))
 
 
+def release(context):
+    """Free the gizmo directly when the final status update could not be delivered."""
+    key, token, _ = context
+    active = ACTIVE.get(key)
+    if active is not None and active[0] == token:
+        ACTIVE.pop(key, None)
+
+
+def discard_staging(staging):
+    try:
+        staging.cleanup()
+    except OSError:
+        pass  # A locked temp file must not stop the render or hide its final status.
+
+
+def watch_request(host, route, stop, notify):
+    """GET a status route, retrying transient network errors a few times.
+
+    Returns STOPPED if Cancel arrives while waiting to retry.
+    """
+    failures = 0
+    while True:
+        try:
+            return client.json_request(host, route)
+        except client.TransientError as error:
+            failures += 1
+            if failures > WATCH_RETRIES:
+                raise RuntimeError(f"Lost contact with ComfyUI after {failures} attempts. "
+                                   f"The render may still be running there. {error}") from error
+            notify(f"Reconnecting to ComfyUI ({failures}/{WATCH_RETRIES})")
+            if stop.wait(WATCH_RETRY_SECONDS * failures):
+                return STOPPED
+
+
+def history_prompt(entry):
+    """The workflow ComfyUI stored with a finished job, or {}."""
+    saved = entry.get("prompt")
+    if isinstance(saved, (list, tuple)) and len(saved) > 2 and isinstance(saved[2], dict):
+        return saved[2]
+    return {}
+
+
+def resume_details(host, folder, entry):
+    """What a resumed job needs, rebuilt from its render folder and ComfyUI's history.
+
+    Anything that cannot be recovered is left as None; the contact sheet is then skipped.
+    """
+    prompt = history_prompt(entry)
+    comfy_root = find_comfy_root("", host)
+    clay, look = folder / "Clay.mp4", folder / "LookStill.png"
+    relative = size = ffmpeg = fps = None
+    exr_local = is_local_server(host)
+    if prompt:
+        exr_local = exr_in_folder(prompt, folder) or (folder / "EXR" / "Render.0001.exr").is_file()
+        try:
+            relative = exr_relative(prompt)
+        except (KeyError, TypeError, AttributeError):
+            pass
+        try:
+            sizes = prompt["5548:5026"]["inputs"]
+            size = (int(sizes["width"]) * 2, int(sizes["height"]) * 2)
+        except (KeyError, TypeError, ValueError):
+            pass
+    if size is not None and clay.is_file() and look.is_file():
+        try:
+            ffmpeg = find_ffmpeg("", comfy_root, host)
+            fps = clip_fps(ffmpeg, clay)
+        except (ValueError, RuntimeError):
+            ffmpeg = fps = None
+    return types.SimpleNamespace(comfy_root=comfy_root, clay=clay, look=look, size=size,
+                                 ffmpeg=ffmpeg, fps=fps, exr_subfolder=relative, exr_local=exr_local)
+
+
 def render(context, host, folder, job_id, submission, export=None, stop=None):
     stop = stop if stop is not None else threading.Event()
     submitting = False
     terminal_status = None
+    # Only a fresh submission knows these; a resumed job rebuilds them after the wait.
+    clay = look = size = ffmpeg = fps = comfy_root = exr_subfolder = exr_local = None
+    last_status = None
+
+    def reconnecting(text):
+        nonlocal last_status
+        last_status = None  # Show the real status again once the connection is back.
+        publish(context, text)
+
     try:
         if submission is not None:
             clay, look, settings = submission
+            size = settings[:2]
             folder.mkdir(parents=True, exist_ok=True)
             if stop.is_set():
                 terminal_status = "Request canceled"
@@ -778,13 +950,14 @@ def render(context, host, folder, job_id, submission, export=None, stop=None):
                 encode_clay(ffmpeg, sequence, first, last, fps, clay)
                 clay = clay.replace(folder / "Clay.mp4")
                 look = look.replace(folder / "LookStill.png")
-                export[0].cleanup()
+                discard_staging(export[0])
             if stop.is_set():
                 publish(context, "Request canceled", terminal=True)
                 return
             publish(context, "Uploading clay and look still")
             prompt = build_prompt(client.upload(host, clay), client.upload(host, look), *settings)
             exr_subfolder = add_exr_output(host, prompt, folder)
+            exr_local = exr_in_folder(prompt, folder)
             if stop.is_set():
                 publish(context, "Request canceled", terminal=True)
                 return
@@ -793,12 +966,14 @@ def render(context, host, folder, job_id, submission, export=None, stop=None):
             job_id = reply["prompt_id"]
             publish(context, "Queued in ComfyUI", (job_id, host, folder))
         started = time.monotonic()
-        last_status = None
         while time.monotonic() - started < 12 * 3600:
             if stop.is_set():
                 publish(context, cancel_remote(host, job_id), terminal=True)
                 return
-            entry = client.json_request(host, f"/history/{job_id}").get(job_id)
+            history = watch_request(host, f"/history/{job_id}", stop, reconnecting)
+            if history is STOPPED:
+                continue
+            entry = (history or {}).get(job_id)
             if entry:
                 status = entry.get("status", {})
                 if status.get("status_str") == "error":
@@ -808,7 +983,10 @@ def render(context, host, folder, job_id, submission, export=None, stop=None):
                     raise RuntimeError(details.get("exception_message") or "ComfyUI render failed or was interrupted.")
                 if status.get("completed"):
                     break
-            queue_data = client.json_request(host, "/queue")
+            queue_data = watch_request(host, "/queue", stop, reconnecting)
+            if queue_data is STOPPED:
+                continue
+            queue_data = queue_data or {}
             running = any(item[1] == job_id for item in queue_data.get("queue_running", []))
             pending = any(item[1] == job_id for item in queue_data.get("queue_pending", []))
             current = "Rendering in ComfyUI" if running else "Queued in ComfyUI"
@@ -819,36 +997,46 @@ def render(context, host, folder, job_id, submission, export=None, stop=None):
             if current != last_status:
                 publish(context, current)
                 last_status = current
-            stop.wait(3)
+            stop.wait(WATCH_POLL_SECONDS)
         else:
             raise RuntimeError("Stopped watching after 12 hours. Check the job in ComfyUI.")
         publish(context, "Downloading render")
         folder.mkdir(parents=True, exist_ok=True)
+        if submission is None:
+            resumed = resume_details(host, folder, entry)
+            clay, look, size, ffmpeg, fps = resumed.clay, resumed.look, resumed.size, resumed.ffmpeg, resumed.fps
+            comfy_root, exr_subfolder, exr_local = resumed.comfy_root, resumed.exr_subfolder, resumed.exr_local
         video, sheet = folder / "Render.mp4", folder / "ContactSheet.mp4"
         local_video = local_comfy_render(host, folder, comfy_root)
         if local_video is not None:
             shutil.copyfile(local_video, video)
         else:
             client.download(host, client.find_output(entry, "4852", ".mp4"), video)
-        exr = fetch_exr(host, folder, entry, exr_subfolder, stop)
+        exr = fetch_exr(host, folder, entry, exr_subfolder, stop, exr_local)
         if exr is not None:
             publish(context, "EXR render ready", result=(exr, None))
         if stop.is_set():
             publish(context, "Post-processing canceled", terminal=True)
             return
+        if None in (ffmpeg, fps, size) or not (Path(clay).is_file() and Path(look).is_file()):
+            publish(context, "Complete (contact sheet not built)", terminal=True)
+            return
         publish(context, "Building contact sheet video")
         frame_count = int(entry["outputs"]["9100"]["count"][0])
-        make_contact_video(ffmpeg, clay, look, video, sheet, settings[0], settings[1], fps, frame_count)
+        make_contact_video(ffmpeg, clay, look, video, sheet, size[0], size[1], fps, frame_count)
         publish(context, "Complete", result=(None, sheet), terminal=True)
     except Exception as error:
         terminal_status = f"Error: {error}"
     finally:
         if export is not None:
-            export[0].cleanup()
+            discard_staging(export[0])
             if job_id is None and not submitting:
                 discard_empty_run(folder)
         if terminal_status is not None:
-            publish(context, terminal_status, terminal=True)
+            try:
+                publish(context, terminal_status, terminal=True)
+            except Exception:
+                release(context)
 
 
 def apply_update(context, status, job, result, terminal):
