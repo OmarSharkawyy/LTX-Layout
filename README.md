@@ -10,7 +10,7 @@ Made by [Omar El Sharkawy](https://github.com/OmarSharkawyy).
 | --- | --- |
 | **LTX Layout Studio** | Renders a Clay layout in the look of a Look Still with LTX-2.5, then brings back ACEScg EXRs and a 2×2 contact sheet as Read nodes. |
 
-**Setup links** · [Install LTX Layout](#install) · [Download Nuke](https://downloads.foundry.com/nuke) · [Install ComfyUI](https://docs.comfy.org/installation/comfyui_portable_windows) · [LTXVideo nodes](https://github.com/Lightricks/ComfyUI-LTXVideo) · [OCIO nodes](https://github.com/SlavaSexton/ComfyUI-OCIO) · [Model files](docs/INSTALLATION.md#1-prepare-comfyui) · [Download FFmpeg](https://ffmpeg.org/download.html)
+**Setup links** · [Install LTX Layout](#install) · [Download Nuke](https://downloads.foundry.com/nuke) · [Install ComfyUI](https://docs.comfy.org/installation/comfyui_portable_windows) · [LTXVideo nodes](https://github.com/Lightricks/ComfyUI-LTXVideo) · [OCIO nodes](https://github.com/SlavaSexton/ComfyUI-OCIO) · [Model files](#requirements) · [Download FFmpeg](https://ffmpeg.org/download.html)
 
 ## Inputs
 
@@ -24,7 +24,18 @@ Find **LTX Layout Studio** under **Nodes → ComfyUI**.
 ## Requirements
 
 - **Nuke on Windows.** The development target is **Nuke 16.0v5**. See [Nuke compatibility](docs/COMPATIBILITY.md) for the status of other versions.
-- **ComfyUI** with [ComfyUI-LTXVideo](https://github.com/Lightricks/ComfyUI-LTXVideo), [ComfyUI-OCIO](https://github.com/SlavaSexton/ComfyUI-OCIO), and the [LTX-2.5 model files](docs/INSTALLATION.md#1-prepare-comfyui).
+- **ComfyUI** with these custom nodes: [ComfyUI-LTXVideo](https://github.com/Lightricks/ComfyUI-LTXVideo) and [ComfyUI-OCIO](https://github.com/SlavaSexton/ComfyUI-OCIO) for the ACEScg EXR frames.
+- **Models**, under `ComfyUI/models`:
+
+  | Field | File | Folder |
+  | --- | --- | --- |
+  | Transformer | `ltx-2.5-22b-distilled-transformer-bf16.safetensors` | `diffusion_models/` |
+  | Text encoder | `gemma4-12b-with-proj-ltx-2.5-bf16.safetensors` | `text_encoders/` |
+  | Video VAE | `ltx-2.5-video-vae-bf16.safetensors` | `vae/` |
+  | Layout LoRA | `ltx-2.5-22b-ic-lora-layout-to-render-1.0.safetensors` from [Lightricks/LTX-2.5-22b-IC-LoRA-Layout-To-Render](https://huggingface.co/Lightricks/LTX-2.5-22b-IC-LoRA-Layout-To-Render) | `loras/` |
+  | Latent upscaler | `ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors` | `latent_upscale_models/` |
+
+  The other LTX-2.5 files are in [Lightricks/LTX-2.5](https://huggingface.co/Lightricks/LTX-2.5). The audio VAE is not needed.
 - [**FFmpeg**](https://ffmpeg.org/download.html) with `libx264` and standard video filters. The gizmo finds it automatically: on PATH, in common install folders (winget, Chocolatey, Scoop, `C:\ffmpeg`), or the copy bundled with ComfyUI. **Check Setup** shows and checks the build it found.
 
 ## Install
