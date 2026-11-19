@@ -17,7 +17,8 @@ Omar El Sharkawy
 
 2. INSTALL OR UPDATE THE NUKE TOOL
 
-   Download the GitHub ZIP and extract it. Close Nuke. Copy the extracted
+   Download LTX_Layout_Nuke16.zip from the latest GitHub release, or the
+   ZIP of the main branch, and extract it. Close Nuke. Copy the extracted
    LTX-Layout-main folder into %USERPROFILE%\.nuke.
 
    UPDATING FROM AN OLDER VERSION: before copying, move any older copy

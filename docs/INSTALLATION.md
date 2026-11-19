@@ -18,7 +18,7 @@
 
 ## 2. Install the Nuke plugin
 
-1. Close Nuke. Extract the ZIP from the `main` branch and copy its `LTX-Layout-main` folder into `%USERPROFILE%\.nuke`. Keep the `ltx_layout_studio` Python folder beside `LTXLayoutStudio.gizmo` and `menu.py`.
+1. Close Nuke. Download `LTX_Layout_Nuke16.zip` from the [latest release](https://github.com/OmarSharkawyy/LTX-Layout/releases/latest), or the ZIP of the `main` branch, and extract it. Copy its `LTX-Layout-main` folder into `%USERPROFILE%\.nuke`. Keep the `ltx_layout_studio` Python folder beside `LTXLayoutStudio.gizmo` and `menu.py`.
 2. Open `%USERPROFILE%\.nuke\init.py`, or create it if it is missing. Add the block below near the top, keeping the existing startup code. Replace any earlier LTX Layout path entry. The plugin's own `menu.py` registers the command in the ComfyUI menu.
 
    ```python
