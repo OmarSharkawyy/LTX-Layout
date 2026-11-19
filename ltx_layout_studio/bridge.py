@@ -110,10 +110,11 @@ def graph_context(group):
 def create():
     node = nuke.createNode("LTXLayoutStudio")
     first = int(nuke.frame())
-    node["start_at"].setValue(first)
-    node["clay_first"].setValue(first)
+    node["clay_first"].setValue(first)  # Place render at follows it
     node["clay_last"].setValue(first + 48)
     node["look_frame"].setValue(first)
+    node["start_at"].setValue(first)
+    node["start_follows"].setValue(True)
     return node
 
 
@@ -131,6 +132,31 @@ def snap_knob(node, knob):
     snapped = snap_size(knob.value())
     if snapped != knob.value():
         knob.setValue(snapped)
+
+
+_SYNCING = set()  # nodes whose Place render at is being set by follow_first, not by the user
+
+
+def follow_first(node):
+    """Keep Place render at on the Clay First frame, until the user gives it a frame of their own."""
+    follows = node.knob("start_follows")
+    if follows is not None and not follows.value():
+        return
+    key = node.fullName()
+    _SYNCING.add(key)
+    try:
+        node["start_at"].setValue(int(node["clay_first"].value()))
+    finally:
+        _SYNCING.discard(key)
+
+
+def start_edited(node):
+    """A Place render at typed by the user stays put; typing the First frame again re-links it."""
+    if node.fullName() in _SYNCING:
+        return
+    follows = node.knob("start_follows")
+    if follows is not None:
+        follows.setValue(int(node["start_at"].value()) == int(node["clay_first"].value()))
 
 
 def step_size(node, name, steps):

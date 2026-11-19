@@ -15,7 +15,7 @@ Gizmo {
  match_clay_first true
  addUserKnob {3 look_frame l "Look frame" -STARTLINE t "Frame to sample from the Look Still input when frame matching is off."}
  look_frame 1
- knobChanged "if nuke.thisKnob().name() in ('match_clay_first', 'showPanel'):\n    nuke.thisNode()['look_frame'].setEnabled(not nuke.thisNode()['match_clay_first'].value())\nif nuke.thisKnob().name() in ('render_width', 'render_height'):\n    from ltx_layout_studio import bridge\n    bridge.snap_knob(nuke.thisNode(), nuke.thisKnob())"
+ knobChanged "if nuke.thisKnob().name() in ('match_clay_first', 'showPanel'):\n    nuke.thisNode()['look_frame'].setEnabled(not nuke.thisNode()['match_clay_first'].value())\nif nuke.thisKnob().name() == 'clay_first':\n    from ltx_layout_studio import bridge\n    bridge.follow_first(nuke.thisNode())\nif nuke.thisKnob().name() == 'start_at':\n    from ltx_layout_studio import bridge\n    bridge.start_edited(nuke.thisNode())\nif nuke.thisKnob().name() in ('render_width', 'render_height'):\n    from ltx_layout_studio import bridge\n    bridge.snap_knob(nuke.thisNode(), nuke.thisKnob())"
  addUserKnob {26 prompt_title l "" +STARTLINE T "<b>Prompts</b>"}
  addUserKnob {43 positive +INVISIBLE}
  positive "Photorealistic spectators in winter jackets in an indoor ice-skating arena, cool soft overhead lighting."
@@ -30,8 +30,10 @@ Gizmo {
  render_height 448
  addUserKnob {22 render_height_down l "▼" -STARTLINE t "Lower the height by 64 pixels." T "from ltx_layout_studio import bridge; bridge.step_size(nuke.thisNode(), 'render_height', -1)"}
  addUserKnob {22 render_height_up l "▲" -STARTLINE t "Raise the height by 64 pixels." T "from ltx_layout_studio import bridge; bridge.step_size(nuke.thisNode(), 'render_height', 1)"}
- addUserKnob {3 start_at l "Place render at" +STARTLINE t "Timeline frame at which the imported render or contact video begins."}
+ addUserKnob {3 start_at l "Place render at" +STARTLINE t "Timeline frame at which the imported render or contact video begins. It follows First, so the render lines up with the Clay. Type another frame to place it elsewhere; type the First frame again to make it follow First once more."}
  start_at 1
+ addUserKnob {6 start_follows +INVISIBLE}
+ start_follows true
  addUserKnob {1 seed_text l Seed +STARTLINE t "Starting noise seed for both samplers. Change it for a render variation."}
  seed_text 42
  addUserKnob {2 render_dir l "Render folder" +STARTLINE t "Base directory for numbered runs and the files loaded by the Bring buttons."}

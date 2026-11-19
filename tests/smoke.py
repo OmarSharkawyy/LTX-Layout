@@ -86,6 +86,7 @@ def main():
         detection_test(bridge, root)
         ffmpeg_check_test(bridge, ffmpeg, root)
         size_test(bridge)
+        follow_test(bridge)
         robustness_test(bridge, nuke, settings, ffmpeg, run, fixture_video, fixture_exr, root)
     print("Portable integration passed: new paths, setup, upload, queue, EXRs, review MP4, both Reads, "
           "and recovery from network, FFmpeg, resume, seed and path problems.")
@@ -141,6 +142,55 @@ def detection_test(bridge, root):
         bridge._FOUND.clear()
         assert Path(bridge.find_ffmpeg("")) == bundled.resolve()
     bridge._FOUND.clear()
+
+
+def follow_test(bridge):
+    """Place render at follows First, until the user types a frame of their own."""
+
+    class Node:
+        """Calls the gizmo's knobChanged handlers the way Nuke does after each setValue."""
+
+        def __init__(self, **values):
+            self.values = dict(values)
+
+        def fullName(self):
+            return "LTXLayoutStudio1"
+
+        def knob(self, name):
+            return Knob(self, name) if name in self.values else None
+
+        __getitem__ = knob
+
+    class Knob:
+        def __init__(self, node, name):
+            self.node, self.name = node, name
+
+        def value(self):
+            return self.node.values[self.name]
+
+        def setValue(self, value):
+            self.node.values[self.name] = value
+            if self.name == "clay_first":
+                bridge.follow_first(self.node)
+            elif self.name == "start_at":
+                bridge.start_edited(self.node)
+
+    node = Node(clay_first=4, start_at=4, start_follows=True)
+    node["clay_first"].setValue(1)
+    assert node.values["start_at"] == 1 and node.values["start_follows"], node.values
+    node["start_at"].setValue(1001)  # the user places the render elsewhere
+    assert node.values["start_follows"] is False
+    node["clay_first"].setValue(20)
+    assert node.values["start_at"] == 1001, "A frame the user typed must stay."
+    node["start_at"].setValue(20)    # typing First again makes it follow once more
+    assert node.values["start_follows"] is True
+    node["clay_first"].setValue(30)
+    assert node.values["start_at"] == 30
+    old = Node(clay_first=1, start_at=4)  # a gizmo saved before the hidden knob existed
+    old["clay_first"].setValue(9)
+    assert old.values["start_at"] == 9
+    old["start_at"].setValue(12)
+    assert old.values["start_at"] == 12
 
 
 def size_test(bridge):
