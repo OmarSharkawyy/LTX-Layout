@@ -1,10 +1,16 @@
 # LTX Layout
 
-Turn a clay render or playblast into a finished shot from Nuke. Connect the animated layout and a look reference, then click **Queue Render**. ComfyUI runs the two-stage LTX-2.5 workflow in the background. Bring the finished EXRs and the comparison video back into your comp as Read nodes.
+Turn a clay render or playblast into a finished shot without leaving Nuke. Connect the animated layout and a look reference, click **Queue Render**, and ComfyUI runs the two-stage LTX-2.5 workflow in the background. The finished EXRs and a comparison video come back into your comp as Read nodes.
+
+Made by [Omar El Sharkawy](https://github.com/OmarSharkawyy).
+
+| Gizmo | What it does |
+| --- | --- |
+| **LTX Layout Studio** | Renders a Clay layout in the look of a Look Still with LTX-2.5, then brings back ACEScg EXRs and a 2×2 contact sheet as Read nodes. |
 
 **Setup links** · [Install LTX Layout](#install) · [Download Nuke](https://downloads.foundry.com/nuke) · [Install ComfyUI](https://docs.comfy.org/installation/comfyui_portable_windows) · [LTXVideo nodes](https://github.com/Lightricks/ComfyUI-LTXVideo) · [OCIO nodes](https://github.com/SlavaSexton/ComfyUI-OCIO) · [Model files](docs/INSTALLATION.md#1-prepare-comfyui) · [Download FFmpeg](https://ffmpeg.org/download.html)
 
-## Gizmo
+## Inputs
 
 Find **LTX Layout Studio** under **Nodes → ComfyUI**.
 
