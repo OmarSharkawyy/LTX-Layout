@@ -26,7 +26,7 @@
    nuke.pluginAddPath("./ltx-layout-main")
    ```
 
-3. Launch Nuke and create **ComfyUI → LTX Layout Studio** from the Nodes toolbar. To update an existing install, update the files inside its existing folder and use a fresh node after restarting Nuke. Older nodes saved in an existing script can retain older controls.
+3. Launch Nuke and create **ComfyUI → LTX Layout Studio** from the Nodes toolbar. If the ComfyUI menu does not exist yet, the plugin adds it with the ComfyUI icon. To update an earlier install, follow [Update from an older version](#update-from-an-older-version).
 4. In **Settings**, set the ComfyUI URL. The Gizmo finds FFmpeg and the ComfyUI folder by itself: it asks a ComfyUI running on this machine where it is installed, checks PATH (including PATH changes made after you logged in), common install folders (winget, Chocolatey, Scoop, `C:\ffmpeg`, Program Files, Downloads), and the FFmpeg bundled with ComfyUI Portable or ComfyUI Desktop. Only if nothing is found does it ask you to pick `ffmpeg.exe`. FFmpeg needs the `libx264` encoder and the filters used for the 2×2 comparison. Advanced: the `LTX_LAYOUT_FFMPEG` and `LTX_LAYOUT_COMFY_ROOT` environment variables override the search.
 5. Run **Check Setup**. It checks FFmpeg's H.264 encoder and comparison filters, the server, workflow node types and required inputs, model filenames, and available sRGB/ACEScg entries. Run a short render after the check passes.
 
@@ -40,3 +40,32 @@ Use a short animated Clay clip and a matching Look Still for the same compositio
 - Click **Version Up Output** and run a second job in the same folder to verify **0002**. Change **Render folder** to a different existing job or base folder and repeat the Bring checks before recording that build as verified.
 
 The repository includes a [fixture-based integration test](COMPATIBILITY.md#automated-bridge-test) for the Python and file workflow.
+
+## Update from an older version
+
+Python loads the first `ltx_layout_studio` it finds, so an older copy left inside `.nuke` keeps running even after the new files are installed. Remove the old copy before you install the new one.
+
+1. Close Nuke completely.
+2. In `%USERPROFILE%\.nuke`, look for an older copy of the tool:
+   - an `LTX_Layout_Studio` folder from the `v0.1.0-rc.1` release ZIP,
+   - an `ltx_layout_studio` folder placed directly in `.nuke`,
+   - or an earlier `ltx-layout-main` folder.
+
+   Move it out of `.nuke`, for example to `Documents`, and keep it as a backup until the new version works. Do not leave it anywhere inside `.nuke`.
+3. Open `%USERPROFILE%\.nuke\init.py` and `%USERPROFILE%\.nuke\menu.py`. Remove every `nuke.pluginAddPath(...)` line that points at an old LTX Layout folder, such as `./LTX_Layout_Studio`. Keep a single entry in `init.py`:
+
+   ```python
+   import nuke
+   nuke.pluginAddPath("./ltx-layout-main")
+   ```
+
+4. Copy the new `ltx-layout-main` folder into `%USERPROFILE%\.nuke`, as in [Install the Nuke plugin](#2-install-the-nuke-plugin).
+5. Start Nuke and create a fresh **LTX Layout Studio** node. Nodes saved in older scripts keep their older controls.
+6. To confirm which copy is running, open the Script Editor in Python mode and run:
+
+   ```python
+   from ltx_layout_studio import bridge
+   print(bridge.__file__)
+   ```
+
+   The path must end in `ltx-layout-main\ltx_layout_studioridge.py`. If it shows another folder, that older copy is still inside `.nuke`.

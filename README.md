@@ -32,7 +32,9 @@ Find **LTX Layout Studio** under **Nodes → ComfyUI**.
 3. Start ComfyUI, then restart Nuke and add **ComfyUI → LTX Layout Studio**.
 4. Open the gizmo’s **Settings** and check the ComfyUI URL. The default is `http://127.0.0.1:8188`. Run **Check Setup** before your first render. It finds FFmpeg and the local ComfyUI folder automatically and shows what it found; you are only asked to pick `ffmpeg.exe` if nothing is found.
 
-For exact model filenames, dependency setup, and a short verification render, see the [installation guide](docs/INSTALLATION.md). To update, replace the files in your existing plugin folder, restart Nuke, and create a fresh gizmo.
+For exact model filenames, dependency setup, and a short verification render, see the [installation guide](docs/INSTALLATION.md).
+
+**Updating from an older version?** Move any older LTX Layout folder out of `.nuke` and remove its `pluginAddPath` line first, or the old code keeps loading. See [Update from an older version](docs/INSTALLATION.md#update-from-an-older-version).
 
 ## Use
 

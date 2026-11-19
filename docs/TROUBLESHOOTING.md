@@ -4,7 +4,7 @@
 |---|---|
 | LTX Layout is missing from Nuke | Confirm that `LTXLayoutStudio.gizmo` and `menu.py` are directly inside `.nuke/ltx-layout-main`. Add the `init.py` block below, then restart Nuke. |
 | The panel looks like an older version | Create a fresh node after upgrading the plugin files. |
-| An older version keeps loading after an update | Look in `%USERPROFILE%\.nuke` for an older copy, such as an `LTX_Layout_Studio` folder from an earlier release ZIP or an `ltx_layout_studio` folder placed directly in `.nuke`. Remove it and its `pluginAddPath` line in `init.py`, keep only `ltx-layout-main`, then restart Nuke. |
+| An older version keeps loading after an update | An older copy is still inside `.nuke`. Follow [Update from an older version](INSTALLATION.md#update-from-an-older-version), then check the path that `bridge.__file__` prints. |
 | Check Setup cannot reach ComfyUI | Open the address in a browser and confirm the hostname, port, and ComfyUI instance. |
 | Missing node types or models | Read the names reported by Check Setup. Confirm ComfyUI-LTXVideo and ComfyUI-OCIO loaded in that instance, and use the exact filenames in the Models tab. |
 | FFmpeg is missing or lacks an encoder/filter | Install a full build (`winget install Gyan.FFmpeg`) and run Check Setup again; it is found automatically. To force a specific build, set the `LTX_LAYOUT_FFMPEG` environment variable to its path. |

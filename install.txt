@@ -19,7 +19,13 @@ Omar El Sharkawy
 
    Download the GitHub ZIP and extract it. Close Nuke. Copy the extracted
    ltx-layout-main folder into %USERPROFILE%\.nuke.
-   For an update, replace the files inside the existing folder.
+
+   UPDATING FROM AN OLDER VERSION: before copying, move any older copy
+   out of %USERPROFILE%\.nuke (an LTX_Layout_Studio folder from the
+   v0.1.0-rc.1 ZIP, an ltx_layout_studio folder directly in .nuke, or an
+   older ltx-layout-main) and keep it elsewhere as a backup. Remove every
+   pluginAddPath line for the old folder from init.py and menu.py.
+   Otherwise Nuke keeps loading the old code.
 
    Confirm that LTXLayoutStudio.gizmo and menu.py are directly inside
    that folder. Open %USERPROFILE%\.nuke\init.py, or create it if needed.
@@ -29,8 +35,13 @@ Omar El Sharkawy
        import nuke
        nuke.pluginAddPath("./ltx-layout-main")
 
-   Start Nuke and create a fresh node from ComfyUI > LTX Layout Studio. Older nodes
-   saved in an existing script may keep their old interface.
+   Start Nuke and create a fresh node from ComfyUI > LTX Layout Studio.
+   If no ComfyUI menu exists yet, the tool adds one with the ComfyUI icon.
+   Older nodes saved in an existing script may keep their old interface.
+
+   To check which copy runs, enter this in the Script Editor (Python):
+       from ltx_layout_studio import bridge; print(bridge.__file__)
+   The path must end in ltx-layout-main\ltx_layout_studioridge.py.
 
 3. RUN YOUR FIRST RENDER
 
