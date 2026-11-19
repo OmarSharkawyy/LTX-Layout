@@ -21,5 +21,8 @@ https://huggingface.co/Lightricks/LTX-2.5-22b-IC-LoRA-Layout-To-Render
 The ComfyUI-LTXVideo repository publishes its own license notice.
 https://github.com/Lightricks/ComfyUI-LTXVideo/blob/master/LICENSE
 
-See LICENSE_LTX_Layout.txt for the original Nuke integration and the
-THIRD_PARTY_LICENSES folder for the upstream license texts.
+The MIT license in LICENSE covers only the original LTX Layout Nuke
+integration and its original documentation. The adapted Lightricks
+Layout-to-Render workflow and any separately obtained LTX models, LoRAs,
+and upstream components are governed by their own upstream licenses.
+See the THIRD_PARTY_LICENSES folder for the upstream license texts.

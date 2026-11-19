@@ -74,4 +74,4 @@ Select a specific numbered folder to bring an older render back into Nuke withou
 
 ## Licenses
 
-The original Nuke integration by **Omar El Sharkawy** is [MIT-licensed](LICENSE_LTX_Layout.txt). See [attribution](ATTRIBUTION.txt) and the [upstream license texts](THIRD_PARTY_LICENSES) for the adapted Lightricks workflow and model terms. Model weights and FFmpeg are installed separately.
+The original Nuke integration by **Omar El Sharkawy** is [MIT-licensed](LICENSE). See [attribution](ATTRIBUTION.txt) and the [upstream license texts](THIRD_PARTY_LICENSES) for the adapted Lightricks workflow and model terms. Model weights and FFmpeg are installed separately.
