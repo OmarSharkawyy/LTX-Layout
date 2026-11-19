@@ -1,5 +1,7 @@
 # LTX Layout
 
+Run Lightricks’ LTX-2.5 Layout-to-Render workflow inside Nuke. The model and original workflow are by Lightricks. The Nuke gizmo and ComfyUI bridge are by Omar El Sharkawy.
+
 Turn a clay render or playblast into a finished shot without leaving Nuke. Connect the animated layout and a look reference, click **Queue Render**, and ComfyUI runs the two-stage LTX-2.5 workflow in the background. The finished EXRs and a comparison video come back into your comp as Read nodes.
 
 Made by [Omar El Sharkawy](https://github.com/OmarSharkawyy).
